@@ -51,12 +51,12 @@ export interface Scene {
   duration: number;
   effects: Effect[];
   sfx: Sfx[];
-  /** Optional background image URL (AI-generated or uploaded). Replaces the procedural visual. */
-  image?: string;
+  /** Storage key of a background image (AI-generated or uploaded). Replaces the procedural visual. */
+  imageKey?: string;
   /** Description used to generate an AI image for this scene. */
   imagePrompt?: string;
   /** Narration clip for this scene's caption. */
-  narration?: { url: string; duration: number; voice: string; text: string };
+  narration?: { key: string; duration: number; voice: string; text: string };
 }
 
 export interface StoryPlan {

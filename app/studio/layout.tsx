@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/shell";
-import { currentUser } from "@/lib/server/auth";
+import { currentUser } from "@/lib/server/session";
 import { capabilities } from "@/lib/server/capabilities";
 import { userStats } from "@/lib/server/projects";
 
@@ -10,7 +10,7 @@ export default async function StudioLayout({ children }: { children: React.React
   const user = await currentUser();
   if (!user) redirect("/login");
   return (
-    <AppShell user={user} caps={await capabilities()} projectCount={userStats(user.id).projects}>
+    <AppShell user={user} caps={capabilities()} projectCount={(await userStats(user.id)).projects}>
       {children}
     </AppShell>
   );

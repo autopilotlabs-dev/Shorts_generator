@@ -18,8 +18,8 @@ export type Drawable = { width: number; height: number };
 
 export interface Platform {
   createCanvas(w: number, h: number): CanvasLike;
-  /** Returns a ready-to-draw image for a URL, or null while it is still loading. */
-  image(src: string): Drawable | null;
+  /** Returns a ready-to-draw image for a storage key, or null while it is still loading. */
+  image(key: string): Drawable | null;
 }
 
 export const FONT_FAMILIES = {
@@ -113,7 +113,7 @@ export class Renderer {
     ctx.scale(zoom, zoom);
     ctx.translate(-W / 2, -H / 2);
 
-    const img = scene.image ? this.platform.image(scene.image) : null;
+    const img = scene.imageKey ? this.platform.image(scene.imageKey) : null;
     if (img) paintImage(ctx, img, args);
     else PAINTERS[scene.visual](ctx, args);
 

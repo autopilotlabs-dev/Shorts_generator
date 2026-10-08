@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { DemoCanvas } from "@/components/demo-canvas";
 import { Logo, ThemeButton } from "@/components/ui";
-import { currentUser } from "@/lib/server/auth";
+import { currentUser } from "@/lib/server/session";
 
 const FEATURES = [
   { icon: Sparkles, title: "AI director", text: "Claude breaks your story into timed scenes and picks visuals, mood and sound cues." },

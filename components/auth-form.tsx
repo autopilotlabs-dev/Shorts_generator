@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { api } from "@/lib/client/api";
+import { authClient } from "@/lib/auth-client";
 
 export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const router = useRouter();
@@ -15,14 +15,18 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
     const f = new FormData(e.currentTarget);
     setBusy(true);
     setError("");
-    try {
-      await api(`/api/auth/${mode}`, { method: "POST", json: Object.fromEntries(f) });
-      router.push("/studio");
-      router.refresh();
-    } catch (err) {
-      setError((err as Error).message);
+    const email = String(f.get("email"));
+    const password = String(f.get("password"));
+    const { error } = signup
+      ? await authClient.signUp.email({ email, password, name: String(f.get("name")).trim() })
+      : await authClient.signIn.email({ email, password });
+    if (error) {
+      setError(error.message || "Something went wrong. Please try again.");
       setBusy(false);
+      return;
     }
+    router.push("/studio");
+    router.refresh();
   };
 
   return (

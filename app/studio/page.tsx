@@ -3,9 +3,9 @@ import Link from "next/link";
 import { DeleteProjectButton, NewStoryButton } from "@/components/project-actions";
 import { Arrow } from "@/components/ui";
 import { timeAgo } from "@/lib/format";
-import { currentUser } from "@/lib/server/auth";
+import { currentUser } from "@/lib/server/session";
 import { totalDuration } from "@/lib/engine/types";
-import { latestRenderByProject, listProjects, posterOf, userStats } from "@/lib/server/projects";
+import { latestRenderByProject, listProjects, mediaUrl, userStats } from "@/lib/server/projects";
 
 export const metadata = { title: "Dashboard · Nightshade" };
 
@@ -24,10 +24,8 @@ const STATUS = {
 export default async function Dashboard({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const user = (await currentUser())!;
   const q = ((await searchParams).q ?? "").trim().toLowerCase();
-  const all = listProjects(user.id);
+  const [all, renders, stats] = await Promise.all([listProjects(user.id), latestRenderByProject(user.id), userStats(user.id)]);
   const projects = q ? all.filter((p) => `${p.title} ${p.story}`.toLowerCase().includes(q)) : all;
-  const renders = latestRenderByProject(user.id);
-  const stats = userStats(user.id);
   const first = user.name.split(" ")[0];
 
   const tiles = [
@@ -80,7 +78,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3.5">
             {projects.map((p) => {
               const r = renders.get(p.id);
-              const poster = posterOf(r?.status === "done" ? r : null) ?? p.plan?.scenes.find((s) => s.image)?.image ?? null;
+              const sceneImage = p.plan?.scenes.find((s) => s.imageKey)?.imageKey;
+              const poster = (r?.status === "done" ? r.posterUrl : null) ?? (sceneImage ? mediaUrl(sceneImage) : null);
               const status = r ? STATUS[r.status] : null;
               const dur = p.plan ? totalDuration(p.plan) : 0;
               return (

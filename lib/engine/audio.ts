@@ -15,7 +15,7 @@ export interface Mix {
   voice: number;
 }
 
-/** Narration clips keyed by their URL (see Scene.narration.url). */
+/** Decoded narration clips keyed by storage key (see Scene.narration.key). */
 export type VoiceBank = Map<string, AudioBuffer>;
 
 /** Automation times must be non-negative; previewing from mid-video can produce earlier times. */
@@ -118,7 +118,7 @@ export class SoundEngine {
         this.drone(music, scene.mood, at, end, i === plan.scenes.length - 1);
         if (scene.mood === "tension" || scene.mood === "terror") this.tensionStrings(music, at, end);
         this.sceneSfx(sfx, scene, i, at);
-        const clip = scene.narration && voices?.get(scene.narration.url);
+        const clip = scene.narration && voices?.get(scene.narration.key);
         if (clip) this.narrate(voice, music, mix.music, clip, at + NARRATION_LEAD, now);
       }
       start += scene.duration;

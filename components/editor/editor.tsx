@@ -4,7 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "@/components/toast";
 import { Arrow, fmtTime, Gauge, Segmented, Switch, timeAgo } from "@/components/ui";
 import { api } from "@/lib/client/api";
-import { PreviewPlayer, Thumbnailer } from "@/lib/client/preview";
+import { Player, type PlayerRef } from "@remotion/player";
+import { mediaSrc } from "@/lib/client/platform";
+import { previewSoundtrack } from "@/lib/client/soundtrack";
+import { Thumbnailer } from "@/lib/client/thumbnailer";
+import { HorrorShort, type HorrorShortProps } from "@/remotion/HorrorShort";
+import { FPS } from "@/remotion/Root";
 import { sceneAt } from "@/lib/engine/renderer";
 import { SAMPLES } from "@/lib/engine/samples";
 import {
@@ -39,8 +44,8 @@ export function Editor({ initial, caps, initialRenders }: { initial: Project; ca
   const [useAi, setUseAi] = useState(caps.ai);
   const [thumbs, setThumbs] = useState<Thumbnailer | null>(null);
 
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const playerRef = useRef<PreviewPlayer | null>(null);
+  const playerRef = useRef<PlayerRef>(null);
+  const [soundtrack, setSoundtrack] = useState<string | null>(null);
   const dirty = useRef(false);
   const projectRef = useRef(project);
   projectRef.current = project;
@@ -48,7 +53,7 @@ export function Editor({ initial, caps, initialRenders }: { initial: Project; ca
   const { plan, settings } = project;
   const total = plan ? totalDuration(plan) : project.duration;
   const valid = !!plan && total >= MIN_DURATION - 0.05 && total <= MAX_DURATION + 0.05;
-  const voiceId = settings.voiceId || caps.tts.voices[0]?.id || "";
+  const voiceId = settings.voiceId || caps.voices[0]?.id || "";
   const narrated = plan?.scenes.filter((s) => s.narration).length ?? 0;
   const isStale = useCallback((s: Scene) => !!s.narration && (s.narration.text !== s.text.trim() || s.narration.voice !== voiceId), [voiceId]);
   const needVoice = plan?.scenes.filter((s) => s.text.trim() && (!s.narration || isStale(s))).length ?? 0;
@@ -56,7 +61,6 @@ export function Editor({ initial, caps, initialRenders }: { initial: Project; ca
   const latestDone = renders.find((r) => r.status === "done");
   const busy = planning || narrating;
   const opts = useMemo(() => ({ captionStyle: settings.captionStyle, showTitle: settings.showTitle }), [settings.captionStyle, settings.showTitle]);
-  const mix = { music: settings.music, sfx: settings.sfx, voice: settings.voice };
 
   // ---------- persistence ----------
   const update = (patch: Partial<Project> | ((p: Project) => Partial<Project>)) => {
@@ -108,42 +112,72 @@ export function Editor({ initial, caps, initialRenders }: { initial: Project; ca
     setSaveState("saved");
   };
 
-  // ---------- preview ----------
-  useEffect(() => {
-    playerRef.current = new PreviewPlayer(canvasRef.current!, setTime, () => setPlaying(false));
-    setThumbs(new Thumbnailer());
-    return () => playerRef.current?.dispose();
-  }, []);
+  // ---------- preview (Remotion Player: same composition the worker renders) ----------
+  useEffect(() => setThumbs(new Thumbnailer()), []);
 
+  // Re-mix the preview soundtrack (score + SFX + narration) whenever the audio inputs change.
+  const audioSignature = JSON.stringify([plan?.scenes.map((s) => [s.id, s.duration, s.mood, s.sfx, s.narration?.key]), settings.music, settings.sfx, settings.voice]);
   useEffect(() => {
-    if (!plan || playerRef.current?.playing) return;
+    if (!plan) return;
+    let url: string | null = null;
     let alive = true;
-    document.fonts.ready.then(() => alive && playerRef.current?.draw(plan, Math.min(time, totalDuration(plan)), opts));
+    const t = setTimeout(async () => {
+      try {
+        url = await previewSoundtrack(plan, { music: settings.music, sfx: settings.sfx, voice: settings.voice });
+        if (alive) setSoundtrack(url);
+        else URL.revokeObjectURL(url);
+      } catch (e) {
+        console.warn("Preview soundtrack failed", e);
+      }
+    }, 400);
     return () => {
       alive = false;
+      clearTimeout(t);
+      if (url) setTimeout(() => URL.revokeObjectURL(url!), 1000);
     };
-  }, [plan, time, opts]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [audioSignature]);
 
-  const stop = () => {
-    playerRef.current?.stop();
-    setPlaying(false);
-  };
-  const togglePlay = async () => {
+  useEffect(() => {
+    const p = playerRef.current;
+    if (!p) return;
+    const onFrame = ({ detail }: { detail: { frame: number } }) => setTime(detail.frame / FPS);
+    const onPlay = () => setPlaying(true);
+    const onPause = () => setPlaying(false);
+    p.addEventListener("frameupdate", onFrame);
+    p.addEventListener("play", onPlay);
+    p.addEventListener("pause", onPause);
+    p.addEventListener("ended", onPause);
+    return () => {
+      p.removeEventListener("frameupdate", onFrame);
+      p.removeEventListener("play", onPlay);
+      p.removeEventListener("pause", onPause);
+      p.removeEventListener("ended", onPause);
+    };
+  }, [plan, view]);
+
+  const inputProps = useMemo<HorrorShortProps | null>(() => {
+    if (!plan) return null;
+    const media: Record<string, string> = {};
+    for (const s of plan.scenes) if (s.imageKey) media[s.imageKey] = mediaSrc(s.imageKey);
+    return { plan, settings: { ...opts, quality: settings.quality }, soundtrackUrl: soundtrack, media, drawScale: 0.5 };
+  }, [plan, opts, settings.quality, soundtrack]);
+
+  const stop = () => playerRef.current?.pause();
+  const togglePlay = () => {
     if (!plan) return;
-    if (playing) return stop();
     setView("preview");
-    setPlaying(true);
-    try {
-      await playerRef.current!.play(plan, opts, mix, time >= total - 0.1 ? 0 : time);
-    } catch (e) {
-      setPlaying(false);
-      toast((e as Error).message, true);
-    }
+    const p = playerRef.current;
+    if (!p) return;
+    if (p.isPlaying()) return p.pause();
+    if (time >= total - 0.1) p.seekTo(0);
+    p.play();
   };
   const seek = (t: number) => {
-    stop();
     setView("preview");
-    setTime(Math.max(0, Math.min(t, total)));
+    const clamped = Math.max(0, Math.min(t, total));
+    setTime(clamped);
+    playerRef.current?.seekTo(Math.round(clamped * FPS));
   };
   const seekScene = (i: number) => {
     if (!plan) return;
@@ -155,7 +189,7 @@ export function Editor({ initial, caps, initialRenders }: { initial: Project; ca
   // ---------- AI actions ----------
   const generate = async () => {
     if (words(project.story) < 5) return toast("Write at least a sentence or two first.", true);
-    if (plan && (narrated || plan.scenes.some((s) => s.image)) && !confirm("Regenerating replaces your scenes, narration and images. Continue?")) return;
+    if (plan && (narrated || plan.scenes.some((s) => s.imageKey)) && !confirm("Regenerating replaces your scenes, narration and images. Continue?")) return;
     stop();
     setPlanning(true);
     try {
@@ -211,7 +245,7 @@ export function Editor({ initial, caps, initialRenders }: { initial: Project; ca
     const s = server.plan?.scenes.find((x) => x.id === sceneId);
     setProject((p) =>
       p.plan
-        ? { ...p, plan: { ...p.plan, scenes: p.plan.scenes.map((x) => (x.id === sceneId ? { ...x, image: s?.image, imagePrompt: s?.imagePrompt ?? x.imagePrompt } : x)) } }
+        ? { ...p, plan: { ...p.plan, scenes: p.plan.scenes.map((x) => (x.id === sceneId ? { ...x, imageKey: s?.imageKey, imagePrompt: s?.imagePrompt ?? x.imagePrompt } : x)) } }
         : p,
     );
   };
@@ -242,7 +276,7 @@ export function Editor({ initial, caps, initialRenders }: { initial: Project; ca
 
   const generateAllImages = async () => {
     if (!plan) return;
-    const todo = plan.scenes.filter((s) => !s.image);
+    const todo = plan.scenes.filter((s) => !s.imageKey);
     if (!todo.length) return toast("Every scene already has an image.");
     setBulkImages(true);
     const queue = [...todo];
@@ -368,8 +402,8 @@ export function Editor({ initial, caps, initialRenders }: { initial: Project; ca
           area="voc"
           title="Narration"
           value={`${narrated}/${plan?.scenes.length ?? 0}`}
-          foot={!caps.tts.provider ? "Voice not configured on server" : needVoice ? `${needVoice} scene${needVoice === 1 ? "" : "s"} need a voice` : narrated ? "All scenes narrated" : "No narration yet"}
-          accent={!!needVoice && !!caps.tts.provider && !!plan}
+          foot={!caps.tts ? "Voice not configured on server" : needVoice ? `${needVoice} scene${needVoice === 1 ? "" : "s"} need a voice` : narrated ? "All scenes narrated" : "No narration yet"}
+          accent={!!needVoice && caps.tts && !!plan}
         />
         <Stat
           area="pace"
@@ -426,9 +460,24 @@ export function Editor({ initial, caps, initialRenders }: { initial: Project; ca
             </span>
           </div>
           <div className="relative mx-auto aspect-[9/16] w-full max-w-[360px] overflow-hidden rounded-[18px] bg-black shadow-[0_0_0_1px_#ffffff14,0_20px_40px_-20px_#000]">
-            <canvas ref={canvasRef} width={540} height={960} className={`block size-full ${view === "video" ? "hidden" : ""}`} />
-            {view === "video" && latestDone?.file && (
-              <video key={latestDone.id} src={latestDone.file} poster={latestDone.file.replace(/\.mp4$/, ".jpg")} controls autoPlay playsInline className="size-full bg-black object-contain" />
+            {inputProps && (
+              <div className={`size-full ${view === "video" ? "hidden" : ""}`}>
+                <Player
+                  ref={playerRef}
+                  component={HorrorShort}
+                  inputProps={inputProps}
+                  durationInFrames={Math.max(1, Math.ceil(total * FPS))}
+                  compositionWidth={1080}
+                  compositionHeight={1920}
+                  fps={FPS}
+                  style={{ width: "100%", height: "100%" }}
+                  clickToPlay={false}
+                  acknowledgeRemotionLicense
+                />
+              </div>
+            )}
+            {view === "video" && latestDone?.videoUrl && (
+              <video key={latestDone.id} src={latestDone.videoUrl} poster={latestDone.posterUrl ?? undefined} controls autoPlay playsInline className="size-full bg-black object-contain" />
             )}
             {!plan && view === "preview" && (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-[13px] text-[#6f707a]" style={{ background: "repeating-linear-gradient(45deg,#ffffff06 0 6px,transparent 6px 14px)" }}>
@@ -504,10 +553,10 @@ export function Editor({ initial, caps, initialRenders }: { initial: Project; ca
             <h2 className="card-title">Voice &amp; sound</h2>
             <span className="arrow-btn"><Mic size={15} /></span>
           </div>
-          {caps.tts.provider ? (
+          {caps.tts ? (
             <>
               <select className="field py-2.5" aria-label="Narrator voice" value={voiceId} onChange={(e) => updateSettings({ voiceId: e.target.value })} disabled={narrating}>
-                {caps.tts.voices.map((v) => (
+                {caps.voices.map((v) => (
                   <option key={v.id} value={v.id}>
                     {v.label}
                     {v.description ? ` — ${v.description}` : ""}
@@ -588,7 +637,7 @@ export function Editor({ initial, caps, initialRenders }: { initial: Project; ca
                   onGenerateImage={() => sceneImage(s, "ai")}
                   onUploadImage={(f) => sceneImage(s, "upload", f)}
                   onRemoveImage={() => sceneImage(s, "remove")}
-                  onPlayVoice={() => s.narration && new Audio(s.narration.url).play()}
+                  onPlayVoice={() => s.narration && new Audio(mediaSrc(s.narration.key)).play()}
                 />
               ))
             )}
@@ -625,8 +674,8 @@ export function Editor({ initial, caps, initialRenders }: { initial: Project; ca
               {active ? <span className="spinner" /> : <Clapperboard size={17} />}
               {active ? (active.status === "queued" ? "Queued…" : "Rendering…") : latestDone ? "Render again" : "Render MP4"}
             </button>
-            {latestDone?.file && (
-              <a className="btn btn-outline w-full" href={`${latestDone.file}?download=${slug}.mp4`}>
+            {latestDone?.videoUrl && (
+              <a className="btn btn-outline w-full" href={`${latestDone.videoUrl}?download=${slug}.mp4`}>
                 <Download size={16} /> Download · {((latestDone.size ?? 0) / 1e6).toFixed(1)} MB
               </a>
             )}

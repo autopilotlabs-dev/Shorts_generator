@@ -1,7 +1,8 @@
 "use client";
 import { ImagePlus, Mic, Play, Sparkles, Trash2, Upload, X } from "lucide-react";
 import { useEffect, useRef } from "react";
-import type { Thumbnailer } from "@/lib/client/preview";
+import { mediaSrc } from "@/lib/client/platform";
+import type { Thumbnailer } from "@/lib/client/thumbnailer";
 import { EFFECTS, MOODS, SFX, VISUALS, type Scene, type StoryPlan } from "@/lib/engine/types";
 
 const MOOD_CLS: Record<string, string> = {
@@ -38,7 +39,7 @@ export function SceneRow(p: Props) {
     if (thumb.current && p.thumbs) p.thumbs.draw(p.plan, p.index, thumb.current);
     // Redraw when anything visual about this scene changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [p.thumbs, s.visual, s.mood, s.effects.join(), s.image, s.duration, p.index]);
+  }, [p.thumbs, s.visual, s.mood, s.effects.join(), s.imageKey, s.duration, p.index]);
 
   const toggle = (key: "sfx" | "effects", v: string) => {
     const arr = s[key] as string[];
@@ -48,9 +49,9 @@ export function SceneRow(p: Props) {
   return (
     <div className={`grid grid-cols-[54px_1fr] gap-3 rounded-2xl border-[1.5px] p-2.5 transition ${p.current ? "border-accent/40 bg-accent-soft" : "border-transparent hover:bg-card-2"}`}>
       <button type="button" onClick={p.onSeek} title="Preview this scene" className="relative h-24 w-[54px] overflow-hidden rounded-xl bg-black">
-        {s.image ? (
+        {s.imageKey ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={s.image} alt="" className="size-full object-cover" />
+          <img src={mediaSrc(s.imageKey)} alt="" className="size-full object-cover" />
         ) : (
           <canvas ref={thumb} width={108} height={192} className="block size-full" />
         )}
@@ -73,7 +74,7 @@ export function SceneRow(p: Props) {
         />
         <div className="flex flex-wrap items-center gap-1.5">
           <span className={`rounded-md border px-2 py-0.5 text-[11px] font-bold capitalize dark:bg-transparent ${MOOD_CLS[s.mood]}`}>{s.mood}</span>
-          <select className="select-sm" aria-label="Visual" value={s.visual} disabled={p.disabled || !!s.image} onChange={(e) => p.onChange({ visual: e.target.value as Scene["visual"] })}>
+          <select className="select-sm" aria-label="Visual" value={s.visual} disabled={p.disabled || !!s.imageKey} onChange={(e) => p.onChange({ visual: e.target.value as Scene["visual"] })}>
             {VISUALS.map((v) => <option key={v}>{v}</option>)}
           </select>
           <select className="select-sm" aria-label="Mood" value={s.mood} disabled={p.disabled} onChange={(e) => p.onChange({ mood: e.target.value as Scene["mood"] })}>
@@ -126,7 +127,7 @@ export function SceneRow(p: Props) {
                 }}
               />
             </label>
-            {s.image && (
+            {s.imageKey && (
               <button type="button" onClick={p.onRemoveImage} title="Remove image" className="inline-flex items-center rounded-lg border border-line bg-card px-1.5 py-1 text-muted hover:text-fg">
                 <X size={13} />
               </button>

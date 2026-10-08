@@ -1,0 +1,53 @@
+# Personal / single-machine setup. For production, point DATABASE_URL, REDIS_URL and
+# STORAGE_DRIVER=s3 at managed services (e.g. Neon, Upstash, Cloudflare R2) instead.
+services:
+  web:
+    build: .
+    ports: ["3000:3000"]
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgres://nightshade:nightshade@db:5432/nightshade
+      REDIS_URL: redis://redis:6379
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+    volumes: [media:/data]
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_started }
+
+  worker:
+    build: .
+    command: npm run worker
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgres://nightshade:nightshade@db:5432/nightshade
+      REDIS_URL: redis://redis:6379
+      # The worker's headless browser fetches signed media from the web container.
+      INTERNAL_APP_URL: http://web:3000
+    volumes: [media:/data]
+    depends_on: [web]
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: nightshade
+      POSTGRES_PASSWORD: nightshade
+      POSTGRES_DB: nightshade
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nightshade"]
+      interval: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: [redisdata:/data]
+
+volumes:
+  media:
+  pgdata:
+  redisdata:

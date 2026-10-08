@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { api } from "@/lib/client/api";
+import { authClient } from "@/lib/auth-client";
 import type { Capabilities } from "@/lib/server/capabilities";
 import { useToast } from "./toast";
 import { initials, Logo, ThemeButton, useTheme } from "./ui";
@@ -71,12 +72,12 @@ export function AppShell({ user, caps, projectCount, children }: { user: ShellUs
   const [theme, toggleTheme] = useTheme();
   const { create, busy } = useNewProject();
   const logout = async () => {
-    await api("/api/auth/logout", { method: "POST" }).catch(() => {});
+    await authClient.signOut();
     router.push("/login");
     router.refresh();
   };
   const navBtn = "flex items-center gap-3 rounded-xl px-3 py-2.5 text-left font-medium text-muted transition hover:bg-card-2 hover:text-fg";
-  const enabled = [caps.ai && "AI director", caps.tts.provider && "Voice", caps.images && "AI images"].filter(Boolean) as string[];
+  const enabled = [caps.ai && "AI director", caps.tts && "Voice", caps.images && "AI images"].filter(Boolean) as string[];
 
   return (
     <div className="mx-auto my-4 grid min-h-[calc(100vh-32px)] max-w-[1440px] grid-cols-[236px_1fr] gap-3.5 rounded-[32px] bg-shell p-3.5 max-[900px]:m-0 max-[900px]:min-h-screen max-[900px]:grid-cols-1 max-[900px]:rounded-none max-[900px]:p-2.5">

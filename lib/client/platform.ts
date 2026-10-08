@@ -1,5 +1,8 @@
-// Browser implementation of the renderer's Platform (canvas factory + image cache).
+// Browser implementation of the renderer's Platform (canvas factory + image cache by storage key).
 import type { CanvasLike, Drawable, Platform } from "@/lib/engine/renderer";
+
+/** Browser URL for a stored object (session-checked by /api/media). */
+export const mediaSrc = (key: string) => `/api/media/${key}`;
 
 const images = new Map<string, HTMLImageElement>();
 
@@ -10,25 +13,14 @@ export const browserPlatform: Platform = {
     c.height = h;
     return c as CanvasLike;
   },
-  image(src): Drawable | null {
-    let img = images.get(src);
+  image(key): Drawable | null {
+    let img = images.get(key);
     if (!img) {
       img = new Image();
       img.decoding = "async";
-      img.src = src;
-      images.set(src, img);
+      img.src = mediaSrc(key);
+      images.set(key, img);
     }
     return img.complete && img.naturalWidth ? img : null;
   },
 };
-
-/** Resolves once every image in `srcs` has loaded (or failed). */
-export function preloadImages(srcs: string[]): Promise<void> {
-  return Promise.all(
-    srcs.map((src) => {
-      browserPlatform.image(src);
-      const img = images.get(src)!;
-      return img.complete ? Promise.resolve() : new Promise<void>((r) => ((img.onload = () => r()), (img.onerror = () => r())));
-    }),
-  ).then(() => {});
-}

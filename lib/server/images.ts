@@ -1,8 +1,7 @@
-// AI scene images via OpenAI's image API (OPENAI_API_KEY). Override the model with OPENAI_IMAGE_MODEL.
+// AI scene images with OpenAI gpt-image-1-mini (portrait 1024x1536: $0.006 low / $0.015 medium per image).
+import { openai, openaiConfigured } from "./openai";
 
-export function imagesAvailable(): boolean {
-  return Boolean(process.env.OPENAI_API_KEY) && process.env.IMAGE_PROVIDER !== "none";
-}
+export const imagesAvailable = () => openaiConfigured() && process.env.IMAGE_PROVIDER !== "none";
 
 export function horrorPrompt(description: string, title: string): string {
   return [
@@ -14,29 +13,17 @@ export function horrorPrompt(description: string, title: string): string {
   ].join(" ");
 }
 
-/** Returns PNG bytes for a portrait image. */
-export async function generateImage(prompt: string): Promise<Buffer> {
-  if (!imagesAvailable()) throw new Error("No image provider configured (set OPENAI_API_KEY).");
-  const r = await fetch(`${openaiBase()}/images/generations`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-1",
-      prompt,
-      size: "1024x1536",
-      quality: process.env.OPENAI_IMAGE_QUALITY || "medium",
-      n: 1,
-    }),
-    signal: AbortSignal.timeout(180_000),
+export async function generateImage(prompt: string): Promise<{ data: Buffer; ext: "jpg"; contentType: "image/jpeg" }> {
+  const res = await openai().images.generate({
+    model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-1-mini",
+    prompt,
+    size: "1024x1536",
+    quality: (process.env.OPENAI_IMAGE_QUALITY as "low" | "medium" | "high") || "medium",
+    output_format: "jpeg",
+    output_compression: 85,
+    n: 1,
   });
-  if (!r.ok) throw new Error(`Image generation failed (${r.status}): ${(await r.text()).slice(0, 300)}`);
-  const data = (await r.json()) as { data: { b64_json?: string; url?: string }[] };
-  const item = data.data?.[0];
-  if (item?.b64_json) return Buffer.from(item.b64_json, "base64");
-  if (item?.url) return Buffer.from(await (await fetch(item.url)).arrayBuffer());
-  throw new Error("Image API returned no image.");
-}
-
-function openaiBase() {
-  return (process.env.OPENAI_BASE_URL || "https://api.openai.com/v1").replace(/\/$/, "");
+  const b64 = res.data?.[0]?.b64_json;
+  if (!b64) throw new Error("The image API returned no image.");
+  return { data: Buffer.from(b64, "base64"), ext: "jpg", contentType: "image/jpeg" };
 }
