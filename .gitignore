@@ -1,0 +1,11 @@
+node_modules/
+dist/
+*.log
+tmp/
+.next/
+next-env.d.ts
+data/
+*.tsbuildinfo
+.env*
+!.env.example
+.remotion/

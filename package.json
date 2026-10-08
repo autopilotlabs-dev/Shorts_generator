@@ -1,0 +1,67 @@
+{
+  "name": "nightshade-horror-shorts",
+  "version": "1.0.0",
+  "description": "Turn horror stories into animated 10-60s vertical short videos with procedural visuals, sound design and captions.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "worker": "node --no-warnings --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx worker/render-worker.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "node --env-file-if-exists=.env --env-file-if-exists=.env.local node_modules/drizzle-kit/bin.cjs migrate",
+    "auth:generate": "npx @better-auth/cli generate --config lib/auth.ts --output db/auth-schema.ts",
+    "studio": "remotion studio remotion/index.ts",
+    "typecheck": "tsc -p .",
+    "test": "node --no-warnings --import tsx --test --test-force-exit tests/*.test.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/autopilotlabs-dev/Shorts_generator.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/autopilotlabs-dev/Shorts_generator/issues"
+  },
+  "homepage": "https://github.com/autopilotlabs-dev/Shorts_generator#readme",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.132.1",
+    "@aws-sdk/client-s3": "^3.1147.0",
+    "@aws-sdk/s3-request-presigner": "^3.1147.0",
+    "@remotion/bundler": "4.0.534",
+    "@remotion/media": "4.0.534",
+    "@remotion/player": "4.0.534",
+    "@remotion/renderer": "4.0.534",
+    "better-auth": "^1.7.7",
+    "bullmq": "^6.3.11",
+    "drizzle-orm": "^0.45.4",
+    "ioredis": "^6.0.0",
+    "lucide-react": "^1.53.0",
+    "next": "^16.4.0",
+    "node-web-audio-api": "^2.2.0",
+    "openai": "^7.30.1",
+    "postgres": "^3.4.9",
+    "rate-limiter-flexible": "^11.2.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "remotion": "4.0.534",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@remotion/cli": "4.0.534",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^26.6.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "drizzle-kit": "^0.31.11",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  },
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  }
+}

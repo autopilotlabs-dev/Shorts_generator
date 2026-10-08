@@ -1,0 +1,132 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@font-face { font-family: "Plus Jakarta Sans"; src: url("/fonts/PlusJakartaSans-Regular.ttf") format("truetype"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Plus Jakarta Sans"; src: url("/fonts/PlusJakartaSans-SemiBold.ttf") format("truetype"); font-weight: 500 600; font-display: swap; }
+@font-face { font-family: "Plus Jakarta Sans"; src: url("/fonts/PlusJakartaSans-Bold.ttf") format("truetype"); font-weight: 700 800; font-display: swap; }
+@font-face { font-family: "Oswald"; src: url("/fonts/Oswald-SemiBold.ttf") format("truetype"); font-weight: 400 700; font-display: block; }
+@font-face { font-family: "Special Elite"; src: url("/fonts/SpecialElite.ttf") format("truetype"); font-display: block; }
+@font-face { font-family: "Creepster"; src: url("/fonts/Creepster.ttf") format("truetype"); font-display: block; }
+
+/* Design tokens — light by default, dark via [data-theme="dark"] (set before paint in app/layout.tsx). */
+:root {
+  --bg: #e9eaec;
+  --shell: #f5f5f6;
+  --card: #ffffff;
+  --card-2: #f4f4f5;
+  --line: #e7e7ea;
+  --text: #121316;
+  --muted: #8b8f98;
+  --accent: #a3132a;
+  --accent-2: #6e0a1a;
+  --accent-soft: #fbe9ec;
+  --accent-text: #a3132a;
+  --hatch: #d9c3c7;
+  --night: #121214;
+  --ok: #1f8a4c;
+  color-scheme: light;
+}
+[data-theme="dark"] {
+  --bg: #08080a;
+  --shell: #0f0f12;
+  --card: #17171b;
+  --card-2: #1f1f24;
+  --line: #26262c;
+  --text: #f1f1f3;
+  --muted: #8c8d96;
+  --accent: #e0263f;
+  --accent-2: #8c0f22;
+  --accent-soft: #2a1216;
+  --accent-text: #ff5a6e;
+  --hatch: #3a2328;
+  --night: #0b0b0d;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --color-bg: var(--bg);
+  --color-shell: var(--shell);
+  --color-card: var(--card);
+  --color-card-2: var(--card-2);
+  --color-line: var(--line);
+  --color-fg: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-text: var(--accent-text);
+  --color-hatch: var(--hatch);
+  --color-night: var(--night);
+  --color-ok: var(--ok);
+  --radius-bento: 22px;
+}
+
+html, body { background: var(--bg); color: var(--text); }
+body { font-family: var(--font-sans); font-size: 15px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
+button { cursor: pointer; }
+button:disabled { cursor: default; }
+input[type="range"] { accent-color: var(--accent); width: 100%; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+@layer components {
+  .card { @apply bg-card rounded-bento p-[18px] flex flex-col gap-3 min-w-0 shadow-[0_1px_2px_rgba(16,17,20,0.04)]; }
+  .card-title { @apply text-base font-bold tracking-tight; }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 font-semibold whitespace-nowrap border-[1.5px] border-transparent transition active:scale-[0.98] disabled:opacity-45 disabled:pointer-events-none;
+  }
+  .btn-primary { background: linear-gradient(180deg, var(--accent), var(--accent-2)); @apply text-white shadow-[0_6px_18px_-8px_var(--accent)] hover:brightness-110; }
+  .btn-outline { @apply bg-card border-accent-2 text-accent-text hover:bg-accent-soft; }
+  .btn-ghost { @apply bg-card-2 text-fg hover:bg-line; }
+  .btn-sm { @apply px-3.5 py-1.5 text-[13px]; }
+  .chip { @apply inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-[12.5px] font-semibold text-muted whitespace-nowrap; }
+  .arrow-btn { @apply inline-flex size-8 items-center justify-center rounded-full border-[1.5px] border-line text-fg; }
+  .field { @apply w-full rounded-[14px] border-[1.5px] border-line bg-card-2 px-4 py-3 outline-none transition focus:border-accent focus:bg-card; }
+  .select-sm { @apply rounded-lg border border-line bg-card px-1.5 py-1 text-xs font-semibold; }
+  .label { @apply text-[10.5px] uppercase tracking-[0.06em] text-muted; }
+  .hatched { background: repeating-linear-gradient(45deg, var(--hatch) 0 2px, transparent 2px 7px); border: 1.5px solid var(--hatch); }
+  .accent-grad { background: linear-gradient(180deg, var(--accent), var(--accent-2)); }
+  .hero-grad { background: radial-gradient(130% 120% at 100% 0%, #c0213a 0%, transparent 55%), linear-gradient(160deg, #8f1024, #3a0610); }
+  .night-grad { background: radial-gradient(90% 50% at 50% 0%, #2a0a10 0%, transparent 70%), var(--night); }
+}
+
+.spinner { width: 14px; height: 14px; border: 2px solid #fff6; border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+.spinner-dark { border-color: color-mix(in srgb, var(--text) 25%, transparent); border-top-color: var(--text); }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Editor bento grid */
+.editor-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(300px, 1.15fr);
+  grid-template-areas:
+    "dur scn voc pace"
+    "story story story player"
+    "timeline timeline mix player"
+    "scenes scenes export player";
+}
+@media (max-width: 1180px) {
+  .editor-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) minmax(280px, 1fr);
+    grid-template-areas:
+      "dur scn voc"
+      "pace story story"
+      "player story story"
+      "player timeline timeline"
+      "player mix export"
+      "scenes scenes scenes";
+  }
+}
+@media (max-width: 900px) {
+  .editor-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas: "dur dur" "scn voc" "pace pace" "story story" "player player" "timeline timeline" "mix export" "scenes scenes";
+  }
+}
+@media (max-width: 560px) {
+  .editor-grid {
+    gap: 10px;
+    grid-template-areas: "dur dur" "scn voc" "pace pace" "story story" "player player" "timeline timeline" "mix mix" "export export" "scenes scenes";
+  }
+}
