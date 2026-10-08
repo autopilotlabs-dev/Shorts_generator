@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nightshade Studio</title>
+    <meta name="description" content="Turn a horror story into an animated 10–60 second short with visuals, sound design and captions." />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='9' fill='%23a3132a'/><circle cx='12' cy='14' r='3' fill='white'/><circle cx='20' cy='14' r='3' fill='white'/></svg>" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Oswald:wght@600&family=Special+Elite&family=Creepster&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar" id="sidebar">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i></span>
+          <span>Nightshade</span>
+        </div>
+        <p class="nav-label">Menu</p>
+        <nav class="nav">
+          <a href="#story" class="active" data-icon="grid">Studio</a>
+          <a href="#scenes" data-icon="film">Scenes <span class="nav-badge" id="navScenes">0</span></a>
+          <a href="#timeline" data-icon="chart">Timeline</a>
+          <a href="#mix" data-icon="wave">Sound</a>
+          <a href="#export" data-icon="download">Export</a>
+        </nav>
+        <p class="nav-label">General</p>
+        <nav class="nav">
+          <button type="button" id="themeToggle" data-icon="moon">Dark mode</button>
+          <a href="https://github.com/autopilotlabs-dev/Shorts_generator#readme" target="_blank" rel="noopener" data-icon="help">Help</a>
+        </nav>
+        <div class="promo" id="aiPromo">
+          <span class="promo-icon" data-icon="spark"></span>
+          <h3 id="aiPromoTitle">AI Director</h3>
+          <p id="aiPromoText">Checking server…</p>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <label class="search">
+            <span data-icon="pen"></span>
+            <input id="titleInput" placeholder="Name your story (optional)" maxlength="40" />
+            <kbd>Title</kbd>
+          </label>
+          <div class="topbar-right">
+            <span class="chip" id="aiChip"><i></i>AI planner</span>
+            <span class="chip" id="mp4Chip"><i></i>MP4 export</span>
+            <button class="icon-btn" id="themeToggleTop" type="button" aria-label="Toggle dark mode" data-icon="moon"></button>
+          </div>
+        </header>
+
+        <section class="page-head">
+          <div>
+            <h1>Studio</h1>
+            <p>Write a horror story. Get an animated short with visuals, sound and captions.</p>
+          </div>
+          <div class="actions">
+            <button class="btn btn-outline" id="sampleBtn" type="button">Try a sample</button>
+            <button class="btn btn-primary" id="generateBtn" type="button"><span data-icon="plus"></span>Generate short</button>
+          </div>
+        </section>
+
+        <section class="bento">
+          <article class="card stat stat-hero" style="grid-area: dur">
+            <div class="card-head">
+              <h2>Video length</h2>
+              <span class="arrow" data-icon="arrow"></span>
+            </div>
+            <div class="stat-value"><span id="durationValue">30</span><small>sec</small></div>
+            <input type="range" id="durationInput" min="10" max="60" step="1" value="30" aria-label="Video length in seconds" />
+            <p class="stat-foot"><span class="tag">10–60s</span> Shorts, Reels &amp; TikTok ready</p>
+          </article>
+          <article class="card stat" style="grid-area: scn">
+            <div class="card-head"><h2>Scenes</h2><span class="arrow" data-icon="arrow"></span></div>
+            <div class="stat-value" id="statScenes">0</div>
+            <p class="stat-foot"><span class="tag">≈</span> <span id="statSceneAvg">—</span></p>
+          </article>
+          <article class="card stat" style="grid-area: wrd">
+            <div class="card-head"><h2>Words</h2><span class="arrow" data-icon="arrow"></span></div>
+            <div class="stat-value" id="statWords">0</div>
+            <p class="stat-foot"><span class="tag">wps</span> <span id="statPace">Reading pace</span></p>
+          </article>
+          <article class="card stat" style="grid-area: snd">
+            <div class="card-head"><h2>Sound cues</h2><span class="arrow" data-icon="arrow"></span></div>
+            <div class="stat-value" id="statSfx">0</div>
+            <p class="stat-foot accent" id="statMood">Generate to score your story</p>
+          </article>
+
+          <article class="card story" id="story" style="grid-area: story">
+            <div class="card-head">
+              <h2>Your story</h2>
+              <span class="muted small" id="charCount">0 / 6000</span>
+            </div>
+            <textarea id="storyInput" maxlength="6000" placeholder="It started with a knock at 3 AM. Nobody knocks at 3 AM…"></textarea>
+            <div class="story-opts">
+              <div class="segmented" role="radiogroup" aria-label="Caption style" id="captionStyle">
+                <button type="button" data-value="bold" class="on">Bold</button>
+                <button type="button" data-value="typewriter">Typewriter</button>
+                <button type="button" data-value="creepy">Creepy</button>
+              </div>
+              <label class="switch"><input type="checkbox" id="titleCard" checked /><span></span>Title card</label>
+              <label class="switch" id="aiSwitchWrap"><input type="checkbox" id="useAi" checked /><span></span>AI director</label>
+            </div>
+          </article>
+
+          <article class="card player" style="grid-area: player">
+            <div class="card-head">
+              <h2>Preview</h2>
+              <span class="live" id="liveBadge">Ready</span>
+            </div>
+            <div class="screen">
+              <canvas id="canvas" width="540" height="960"></canvas>
+              <div class="screen-empty" id="screenEmpty">
+                <span data-icon="ghost"></span>
+                <p>Your short appears here</p>
+              </div>
+            </div>
+            <input type="range" id="scrub" min="0" max="1000" value="0" aria-label="Seek" />
+            <div class="clock" id="clock">00:00<span>/ 00:00</span></div>
+            <div class="controls">
+              <button class="round" id="playBtn" type="button" aria-label="Play" data-icon="play" disabled></button>
+              <button class="round rec" id="recordBtn" type="button" aria-label="Render video" data-icon="rec" disabled></button>
+            </div>
+            <p class="player-hint">Render records in real time. Keep this tab visible.</p>
+          </article>
+
+          <article class="card timeline" id="timeline" style="grid-area: timeline">
+            <div class="card-head">
+              <h2>Scene timeline</h2>
+              <span class="muted small" id="timelineTotal">0.0s</span>
+            </div>
+            <div class="bars" id="bars"><p class="empty">Scenes will appear here once generated.</p></div>
+          </article>
+
+          <article class="card mix" id="mix" style="grid-area: mix">
+            <div class="card-head"><h2>Sound mix</h2><span class="arrow" data-icon="wave"></span></div>
+            <label class="slider-row">Score <input type="range" id="musicVol" min="0" max="150" value="100" /><output id="musicOut">100%</output></label>
+            <label class="slider-row">Effects <input type="range" id="sfxVol" min="0" max="150" value="100" /><output id="sfxOut">100%</output></label>
+            <label class="slider-row">Quality
+              <select id="quality">
+                <option value="1080">1080×1920</option>
+                <option value="720" selected>720×1280</option>
+              </select>
+            </label>
+          </article>
+
+          <article class="card scenes" id="scenes" style="grid-area: scenes">
+            <div class="card-head">
+              <h2>Scenes</h2>
+              <button class="pill-btn" id="addScene" type="button" disabled><span data-icon="plus"></span>Add scene</button>
+            </div>
+            <div class="scene-list" id="sceneList"><p class="empty">Write a story and press <b>Generate short</b>.</p></div>
+          </article>
+
+          <article class="card export" id="export" style="grid-area: export">
+            <div class="card-head"><h2>Export</h2><span class="arrow" data-icon="download"></span></div>
+            <div class="gauge">
+              <svg viewBox="0 0 200 110" aria-hidden="true">
+                <defs>
+                  <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                    <rect width="7" height="7" class="hatch-bg" />
+                    <line x1="0" y1="0" x2="0" y2="7" class="hatch-line" />
+                  </pattern>
+                </defs>
+                <path d="M20 100 A80 80 0 0 1 180 100" class="gauge-track" />
+                <path d="M20 100 A80 80 0 0 1 180 100" class="gauge-fill" id="gaugeFill" pathLength="100" />
+              </svg>
+              <div class="gauge-label"><strong id="gaugePct">0%</strong><span id="gaugeText">Not rendered</span></div>
+            </div>
+            <div class="legend"><span><i class="dot fill"></i>Rendered</span><span><i class="dot hatch"></i>Remaining</span></div>
+            <div class="export-actions">
+              <a class="btn btn-primary btn-block disabled" id="downloadBtn" download>Download video</a>
+              <button class="btn btn-outline btn-block" id="convertBtn" type="button" hidden>Convert to MP4</button>
+            </div>
+          </article>
+        </section>
+      </main>
+    </div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
