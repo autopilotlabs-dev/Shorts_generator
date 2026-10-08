@@ -1,75 +1,114 @@
-# Nightshade — Horror Shorts Generator
+# Nightshade — Horror Shorts Studio
 
-Paste a horror story and get a vertical **10–60 second short video** (1080×1920 or 720×1280) with:
+A full-stack **Next.js** app that turns a written horror story into a narrated, animated **10–60 second vertical video** (1080×1920 MP4) for YouTube Shorts, Reels and TikTok.
 
-- **Animated visuals.** 13 procedurally drawn, animated scenes: forest, haunted house, hallway, approaching figure, eyes in the dark, graveyard, opening door, mirror, lake, bedroom, creepy text messages, moonlit sky, void. You can also upload your own image for any scene; it gets a Ken Burns pan and a horror colour grade.
-- **Effects.** Fog, rain, lightning, camera shake, glitch, light flicker, dust, slow push-in, film grain and vignette.
-- **Sound design.** A mood-driven drone score, wind and reverb, plus 14 synthesized sound effects: heartbeat, creak, whisper, stinger, thunder, rain, footsteps, knock, music box, scream, glitch, phone buzz, drip and bell. Everything is generated with the Web Audio API, so there are no audio files and nothing to license.
-- **Captions.** TikTok-style captions that show a few words at a time and highlight the current word, in three styles (Bold, Typewriter, Creepy), plus a title card.
-- **Export.** Recorded in the browser as MP4 (Chrome/Edge) or WebM. The server can convert WebM to H.264 MP4 with ffmpeg.
+**Pipeline:** sign up → write or paste a story → **Generate scenes** → add a **narrator voice** → optional **AI images** per scene → preview in the browser → **Render MP4** on the server → download from your library.
 
-The UI uses a bento-grid layout with light and dark themes.
+## Features
+
+| | |
+|---|---|
+| **Accounts & projects** | Email/password accounts. Stories, scenes, settings, narration, images and rendered videos are saved per user and autosaved while you edit. |
+| **AI director** | Claude breaks the story into timed scenes and picks a visual, mood, effects, sound cues and an image prompt for each. A built-in rule-based planner is used when no key is set. |
+| **Narration** | Text-to-speech per scene with ElevenLabs or OpenAI, using a hushed horror-narrator delivery. Scene timing stretches to fit the voice, and the music is ducked under it. |
+| **Visuals** | 13 animated horror scenes (forest, haunted house, hallway, mirror, lake, text messages…) with fog, rain, lightning, shake, glitch and flicker. You can also generate an AI image or upload your own image per scene. |
+| **Sound design** | A procedural, mood-driven score plus 14 synthesized effects (heartbeat, whisper, knock, stinger, thunder, music box…). No audio files are needed. |
+| **Captions** | Word-by-word captions in three styles (Bold, Typewriter, Creepy), plus an optional title card. |
+| **Server rendering** | Renders an H.264/AAC MP4 at 1080p or 720p. Frames are split across CPU cores, and you can keep editing (or close the tab) while it renders. |
+| **UI** | A bento-grid design with light and dark themes. It also works on phones. |
 
 ## How it works
 
 ```
-story ──► scene planner ──► editable shot list ──► canvas renderer + Web Audio ──► MediaRecorder ──► .mp4/.webm
-          (Claude or offline rules)                (src/render, src/audio)          (src/video)      (ffmpeg → mp4)
+ Browser (React)                            Server (Next.js route handlers)
+ ─────────────────                          ───────────────────────────────
+ Editor ── autosave ─────────────────────▶  SQLite (node:sqlite) + media files in DATA_DIR
+ Generate scenes ────────────────────────▶  Claude (structured output)  | offline planner
+ Generate narration ─────────────────────▶  ElevenLabs / OpenAI TTS → MP3 → duration → fit timing
+ AI image / upload ──────────────────────▶  OpenAI images → PNG
+ Live preview: canvas + Web Audio            Render MP4 → job queue → worker process
+   (lib/engine, same code as the server)       ├─ OfflineAudioContext (node-web-audio-api) → WAV
+                                               ├─ N processes draw frames (@napi-rs/canvas) → x264
+                                               └─ ffmpeg concat + mux → MP4 + poster
 ```
 
-1. **Planning** (`POST /api/plan`). The story is split into timed scenes. Each scene has a caption, a visual, a mood, effects and sound cues.
-   - If `ANTHROPIC_API_KEY` is set, Claude directs the scenes (`server/ai-planner.ts`, using structured outputs).
-   - Otherwise a keyword-based planner (`shared/planner.ts`) does it. The browser falls back to the same planner if the server can't be reached, so the app also works as a static site.
-2. **Editing.** You can change any scene's caption, visual, mood, duration, sounds and effects, add or delete scenes, or upload an image for a scene. Changing the length slider rescales all scenes to the new total.
-3. **Rendering.** The video is drawn frame by frame on a `<canvas>` while the soundtrack plays. Both are captured with `MediaRecorder` in real time, so a 30s video takes about 30s to render. Keep the tab visible while it renders.
+The scene renderer (`lib/engine/renderer.ts`, `visuals.ts`) and the sound engine (`lib/engine/audio.ts`) are isomorphic. The same code drives the live browser preview and the final server render, so what you preview is what you get.
 
-## Run it
+## Quick start
 
-Requires Node 20+. ffmpeg is optional and only needed for WebM→MP4 conversion.
+Requirements: **Node 22.5+** (uses the built-in `node:sqlite`) and **ffmpeg** on the `PATH`. On Linux, `libasound2` is also required by the audio renderer.
 
 ```bash
 npm install
-npm run dev          # web on http://localhost:5173, API on :8787
+cp .env.example .env.local   # optional: add API keys
+npm run dev                  # http://localhost:3000
 ```
 
 Production:
 
 ```bash
 npm run build
-npm start            # serves dist/ and the API on http://localhost:8787 (PORT to override)
-```
-
-### Enable the AI director (optional)
-
-```bash
-export ANTHROPIC_API_KEY=sk-ant-...
-# optional: CLAUDE_MODEL=claude-opus-5-5 (default)
 npm start
 ```
 
-## Scripts
+Docker (ffmpeg and libasound2 included; data persists in the volume):
 
-| Command | What it does |
-| --- | --- |
-| `npm run dev` | Vite dev server + API with reload |
-| `npm run build` | Build the frontend into `dist/` |
-| `npm start` | Serve the built app + API |
-| `npm test` | Planner unit tests |
-| `npm run typecheck` | TypeScript check |
+```bash
+docker build -t nightshade .
+docker run -p 3000:3000 -v nightshade-data:/data \
+  -e ANTHROPIC_API_KEY=... -e OPENAI_API_KEY=... nightshade
+```
+
+### API keys
+
+All keys are optional. Each one unlocks a feature:
+
+| Variable | Unlocks |
+|---|---|
+| `ANTHROPIC_API_KEY` | Claude scene direction (model `claude-opus-5-5`, override with `CLAUDE_MODEL`) |
+| `ELEVENLABS_API_KEY` | Narration with ElevenLabs voices (your account's voice list is loaded automatically) |
+| `OPENAI_API_KEY` | Narration with OpenAI `gpt-4o-mini-tts` (if no ElevenLabs key) **and** AI scene images (`gpt-image-1`) |
+
+See `.env.example` for every option, including render tuning and the storage location.
+
+## Render performance
+
+Rendering is CPU-bound. On a 4-core machine a 1080p video renders in about 1.7× its length, so a 30s short takes about 50s. 720p is roughly twice as fast. Tuning options:
+
+- `RENDER_PROCESSES` sets the frame-render processes per video (default: CPU count).
+- `RENDER_WORKERS` sets how many videos render at once (default: 1).
+- `X264_PRESET` trades encode speed for file size.
+
+Output is capped at about 8 Mbps (1080p) or 5 Mbps (720p).
 
 ## Project layout
 
 ```
-shared/        types + offline planner (used by browser and server)
-server/        Express API: /api/health, /api/plan, /api/convert
-src/render/    procedural scenes (visuals.ts) and frame compositor (renderer.ts)
-src/audio/     Web Audio sound engine
-src/video/     preview playback + MediaRecorder export
-src/main.ts    UI logic; index.html + src/style.css for the bento UI
+app/                     Next.js App Router: pages + /api route handlers
+  studio/                dashboard, video library, editor ([id])
+  api/                   auth, projects, plan, narration, scene images, renders, media (range-aware)
+components/              React UI (bento design system, editor, shell)
+lib/engine/              isomorphic: types, planner, scene painters, renderer, sound engine
+lib/server/              db, auth, storage, Claude planner, TTS, images, render pipeline + queue
+lib/client/              browser preview player, canvas platform, fetch helper
+scripts/render-worker.ts background render worker (spawned automatically)
+public/fonts/            caption + UI fonts (OFL), shared by browser and server renderer
+tests/                   node:test unit tests
 ```
 
-## Ideas for next steps
+## Scripts
 
-- Voice-over narration through a TTS API, mixed into the soundtrack
-- AI image generation per scene (each scene already supports a custom image)
-- Server-side rendering (headless browser) for faster-than-real-time exports
+| Command | |
+|---|---|
+| `npm run dev` | Dev server |
+| `npm run build` / `npm start` | Production build / server |
+| `npm test` | Unit tests (planner, validation, access control, WAV encoder) |
+| `npm run typecheck` | TypeScript |
+| `npm run worker` | Run the render worker manually; it is normally spawned on demand |
+
+## Limits and notes
+
+- **Single server:** the database is SQLite and the media files live on the local disk in `DATA_DIR`. Run one instance, or move to Postgres plus object storage to scale out.
+- **Abuse limits:** AI endpoints are rate-limited per user, in memory: 60 plans, 300 narration clips and 100 images per hour.
+- **Plain-HTTP deployments:** session cookies are `Secure` in production. When serving over plain HTTP on a host other than localhost, set `INSECURE_COOKIES=1`.
+- **Fonts:** Creepster, Oswald, Special Elite and Plus Jakarta Sans are under the SIL Open Font License.

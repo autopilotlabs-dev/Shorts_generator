@@ -3,13 +3,12 @@
   "version": "1.0.0",
   "description": "Turn horror stories into animated 10-60s vertical short videos with procedural visuals, sound design and captions.",
   "scripts": {
-    "dev": "concurrently -k -n api,web -c red,gray \"npm:dev:api\" \"npm:dev:web\"",
-    "dev:api": "tsx watch server/index.ts",
-    "dev:web": "vite",
-    "build": "vite build",
-    "start": "NODE_ENV=production tsx server/index.ts",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "worker": "node --no-warnings --import tsx scripts/render-worker.ts",
     "typecheck": "tsc -p .",
-    "test": "tsx --test tests/*.test.ts"
+    "test": "node --no-warnings --import tsx --test tests/*.test.ts"
   },
   "repository": {
     "type": "git",
@@ -24,19 +23,24 @@
   "homepage": "https://github.com/autopilotlabs-dev/Shorts_generator#readme",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.132.1",
-    "express": "^5.2.1",
-    "fix-webm-duration": "^1.0.6",
-    "multer": "^2.4.0",
+    "@napi-rs/canvas": "^1.0.10",
+    "bcryptjs": "^3.0.3",
+    "lucide-react": "^1.53.0",
+    "next": "^16.4.0",
+    "node-web-audio-api": "^2.2.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@types/express": "^5.0.6",
-    "@types/multer": "^2.3.0",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^26.6.4",
-    "concurrently": "^10.0.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "tailwindcss": "^4.3.3",
     "tsx": "^4.23.15",
-    "typescript": "^7.0.2",
-    "vite": "^8.3.4"
+    "typescript": "^7.0.2"
   },
   "type": "module",
   "private": true,

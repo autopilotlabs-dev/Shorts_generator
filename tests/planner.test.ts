@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { planLocally, splitSentences } from "../shared/planner";
-import { fitDurations, totalDuration, MIN_SCENE, type Scene } from "../shared/types";
-import { SAMPLES } from "../src/samples";
+import { planLocally, splitSentences } from "../lib/engine/planner";
+import { fitDurations, totalDuration, MIN_SCENE, type Scene } from "../lib/engine/types";
+import { SAMPLES } from "../lib/engine/samples";
 
 test("splitSentences keeps punctuation and trailing fragments", () => {
   assert.deepEqual(splitSentences("I heard it. Then nothing! Was it gone"), ["I heard it.", "Then nothing!", "Was it gone"]);
