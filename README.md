@@ -37,6 +37,10 @@ Editor (React) ── autosave ──► Postgres (Drizzle)
 
 The scene painter (`lib/engine/renderer.ts`, `visuals.ts`) and the sound engine (`lib/engine/audio.ts`) are plain TypeScript. They run unchanged in the browser and in the worker, so the preview and the export match.
 
+## No API keys? Make videos locally
+
+`local/` has a key-free pipeline for basic laptops (no GPU needed). Your coding agent (e.g. Antigravity) writes the story and draws the images; `npm run short -- <project>` adds the offline voice, score, captions and animation, and exports the MP4. See [local/README.md](local/README.md).
+
 ## Run it (personal use)
 
 ### With Docker (everything included)
