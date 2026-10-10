@@ -1,13 +1,10 @@
-// Soft, slightly glossy "animated film" materials: smooth shading, gentle clearcoat, warm subsurface-ish tints.
-export function Toon({ color, rough = 0.55, glow, glowIntensity = 1, opacity = 1, sheen = 0.4 }: { color: string; rough?: number; glow?: string; glowIntensity?: number; opacity?: number; sheen?: number }) {
+// Soft, smooth "animated film" materials. Standard (not physical) shading: clearcoat/sheen cost ~10% more
+// render time on CPU-only machines for little visible difference at this size.
+export function Toon({ color, rough = 0.5, glow, glowIntensity = 1, opacity = 1 }: { color: string; rough?: number; glow?: string; glowIntensity?: number; opacity?: number; sheen?: number }) {
   return (
-    <meshPhysicalMaterial
+    <meshStandardMaterial
       color={color}
       roughness={rough}
-      clearcoat={0.35}
-      clearcoatRoughness={0.4}
-      sheen={sheen}
-      sheenColor="#ffffff"
       emissive={glow ?? "#000000"}
       emissiveIntensity={glow ? glowIntensity : 0}
       transparent={opacity < 1}

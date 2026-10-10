@@ -3,7 +3,7 @@
 import { AbsoluteFill } from "remotion";
 import { captionPages } from "../../lib/engine/renderer";
 import type { ResolvedShort } from "../../lib/short3d/spec";
-import { clamp01, flickerAt, noise } from "./util";
+import { clamp01, flickerAt, noise, rng } from "./util";
 
 type Scene = ResolvedShort["scenes"][number];
 
@@ -13,6 +13,25 @@ const FONTS = {
   creepy: { family: "Creepster, Oswald, sans-serif", size: 0.094, upper: true },
 } as const;
 const HIGHLIGHT = "#ff2e47";
+
+let grain: string | null = null;
+/** 128x128 grey noise tile as a data URL, generated once per browser tab. */
+function grainTile(): string {
+  if (grain) return grain;
+  const c = document.createElement("canvas");
+  c.width = c.height = 128;
+  const ctx = c.getContext("2d")!;
+  const img = ctx.createImageData(128, 128);
+  const r = rng(1234);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const v = r() * 255;
+    img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+    img.data[i + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  grain = c.toDataURL("image/png");
+  return grain;
+}
 
 function Captions({ scene, t, style, width }: { scene: Scene; t: number; style: keyof typeof FONTS; width: number }) {
   const font = FONTS[style];
@@ -129,13 +148,15 @@ export function Overlay({ short, scene, index, t, frame, width, height }: { shor
     <AbsoluteFill style={{ pointerEvents: "none" }}>
       {/* vignette */}
       <AbsoluteFill style={{ background: `radial-gradient(ellipse at 50% 45%, transparent 45%, rgba(0,0,0,${scene.mood === "terror" ? 0.75 : 0.6}) 100%)` }} />
-      {/* film grain */}
-      <svg width={width} height={height} style={{ position: "absolute", inset: 0, opacity: 0.07, mixBlendMode: "screen" }}>
-        <filter id={`grain${index}`}>
-          <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves={2} seed={frame % 9} />
-        </filter>
-        <rect width="100%" height="100%" filter={`url(#grain${index})`} />
-      </svg>
+      {/* film grain: one pre-generated noise tile, shifted every frame (an SVG noise filter is far too slow on the CPU) */}
+      <AbsoluteFill
+        style={{
+          backgroundImage: `url(${grainTile()})`,
+          backgroundPosition: `${(frame * 37) % 128}px ${(frame * 71) % 128}px`,
+          opacity: 0.08,
+          mixBlendMode: "screen",
+        }}
+      />
       {flick < 1 && <AbsoluteFill style={{ background: `rgba(0,0,0,${(1 - flick) * 0.8})` }} />}
       {flash > 0 && <AbsoluteFill style={{ background: `rgba(220,230,255,${flash * 0.7})` }} />}
       {glitching && (

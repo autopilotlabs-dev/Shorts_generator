@@ -3,6 +3,7 @@
 import type { Scene3D } from "../../lib/short3d/spec";
 import { Matte, Toon } from "./materials";
 import { PropView } from "./props";
+import { useMemo } from "react";
 import { rng } from "./util";
 
 function Ground({ color, size = 60 }: { color: string; size?: number }) {
@@ -50,17 +51,25 @@ function Moon({ position = [-8, 12, -45] as [number, number, number], size = 1.6
   );
 }
 
+/** All stars in one draw call (cheap on software WebGL). */
 function Stars({ seed }: { seed: number }) {
-  const r = rng(seed);
+  const positions = useMemo(() => {
+    const r = rng(seed);
+    const arr = new Float32Array(90 * 3);
+    for (let i = 0; i < 90; i++) {
+      arr[i * 3] = (r() - 0.5) * 90;
+      arr[i * 3 + 1] = 8 + r() * 28;
+      arr[i * 3 + 2] = -38 - r() * 10;
+    }
+    return arr;
+  }, [seed]);
   return (
-    <group>
-      {Array.from({ length: 60 }, (_, i) => (
-        <mesh key={i} position={[(r() - 0.5) * 80, 8 + r() * 25, -35 - r() * 10]}>
-          <sphereGeometry args={[0.05 + r() * 0.07, 6, 6]} />
-          <meshBasicMaterial color="#e8ecff" fog={false} />
-        </mesh>
-      ))}
-    </group>
+    <points>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+      </bufferGeometry>
+      <pointsMaterial color="#e8ecff" size={2.2} sizeAttenuation={false} fog={false} />
+    </points>
   );
 }
 
@@ -182,12 +191,12 @@ export function SetView({ scene, t }: { scene: Scene3D; t: number }) {
             <planeGeometry args={[1.6, 24]} />
             <Matte color="#3a3026" />
           </mesh>
-          {Array.from({ length: 26 }, (_, i) => {
+          {Array.from({ length: 16 }, (_, i) => {
             const side = i % 2 ? 1 : -1;
             return (
               <PropView
                 key={i}
-                prop={{ type: r() > 0.3 ? "tree" : "dead_tree", x: side * (1.8 + r() * 6), z: 2 - r() * 22, rotation: r() * 360, scale: 0.9 + r() * 0.9, active: false, start: 0 }}
+                prop={{ type: r() > 0.3 ? "tree" : "dead_tree", x: side * (1.8 + r() * 5), z: 1 - r() * 16, rotation: r() * 360, scale: 0.9 + r() * 0.9, active: false, start: 0 }}
                 t={t}
               />
             );

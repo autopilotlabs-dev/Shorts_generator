@@ -24,7 +24,7 @@ Everything renders locally on the user's machine for free (Kokoro TTS + Remotion
    - Does the sequence escalate (shots get tighter, moods darker)?
    Fix the spec and preview again. **At most 2-3 preview rounds** - the user is on a usage-limited plan.
    Use `npm run short -- preview <name> --frames` to see the start/middle/end of each scene when a move matters.
-5. **Render:** `npm run short -- render <name>`. It takes a few minutes on a laptop CPU (roughly 6-7x the video length at 720p). Tell the user the output path: `shorts/<name>/out/<name>.mp4`.
+5. **Render:** `npm run short -- render <name>`. It takes a few minutes on a laptop CPU (roughly 10x the video length at 720p). Tell the user the output path: `shorts/<name>/out/<name>.mp4`.
 
 ## Rules
 

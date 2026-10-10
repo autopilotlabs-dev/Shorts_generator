@@ -61,7 +61,7 @@ The scene format (sets, characters, actions, props, camera shots, moods, sound e
 
 - **Look:** a stylized 3D cartoon. Rounded characters with big expressive eyes, soft lighting, fog, glowing eyes and moody colour grades. Characters are built from code, so it is not animated-studio-film quality.
 - **Speed (CPU only):**
-  - 720p (the default) renders at about 6–7× the video length on a 4-core laptop, so a 30-second short takes about 3–4 minutes.
+  - 720p (the default) renders at about 10× the video length on a 4-core laptop (a 19-second demo took 3 minutes 14 seconds), so a 30-second short takes about 5 minutes.
   - 1080p (`"quality": 1080`) is about twice as slow.
 - **Claude Pro usage:** directing one short is a handful of messages. Previews are capped at 2–3 rounds per video to save your usage.
 - **Settings:**

@@ -37,7 +37,7 @@ function SceneView({ short, scene, index, drawScale }: { short: ResolvedShort; s
   const Custom = scene.custom ? CUSTOM_SCENES[scene.custom] : undefined;
   return (
     <AbsoluteFill>
-      <ThreeCanvas width={Math.round(width * drawScale)} height={Math.round(height * drawScale)} style={{ width, height }} gl={{ antialias: true }} dpr={1}>
+      <ThreeCanvas width={Math.round(width * drawScale)} height={Math.round(height * drawScale)} style={{ width, height }} gl={{ antialias: false }} /* MSAA costs ~17% on software WebGL */ dpr={1}>
         <Lighting scene={scene} t={t} />
         <Fog scene={scene} />
         <SetView scene={scene} t={t} />

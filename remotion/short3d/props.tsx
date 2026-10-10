@@ -29,9 +29,9 @@ function Tree({ dead, seed }: { dead?: boolean; seed: number }) {
         <cylinderGeometry args={[0.12, 0.18, 1.4, 8]} />
         <Matte color="#3a2a22" />
       </mesh>
-      {[0, 1, 2].map((i) => (
-        <mesh key={i} position={[0, 1.5 + i * 0.65, 0]}>
-          <coneGeometry args={[1.0 - i * 0.25, 1.3, 10]} />
+      {[0, 1].map((i) => (
+        <mesh key={i} position={[0, 1.6 + i * 0.85, 0]}>
+          <coneGeometry args={[1.0 - i * 0.3, 1.6, 9]} />
           <Toon color={["#1f3a2e", "#244234", "#2a4a3a"][i]} rough={0.8} sheen={0.2} />
         </mesh>
       ))}
