@@ -23,6 +23,7 @@ export const ACTIONS = [
 ] as const;
 export const EXPRESSIONS = ["neutral", "scared", "surprised", "smile", "creepy_smile", "angry", "closed"] as const;
 export const FACING = ["camera", "left", "right", "away"] as const;
+export const HAIR_STYLES = ["short", "messy", "bob", "ponytail", "long", "bald"] as const;
 export const PROPS = [
   "bed", "lamp", "door", "window", "mirror", "closet", "chair", "table", "tv", "phone", "teddy", "candle",
   "tree", "dead_tree", "grave", "fence", "pumpkin", "lantern", "stairs", "box", "rocking_chair", "music_box",
@@ -46,9 +47,15 @@ export const ActorSchema = z.object({
   /** Seconds into the scene when the actor appears / starts its action. */
   start: z.number().min(0).default(0),
   scale: z.number().min(0.3).max(3).default(1),
+  /** Shirt / dress colour. */
   outfit: hex.optional(),
+  /** Trousers / skirt colour. */
+  pants: hex.optional(),
   hair: hex.optional(),
+  hairStyle: z.enum(HAIR_STYLES).optional(),
   skin: hex.optional(),
+  /** Iris colour. */
+  eyeColor: hex.optional(),
   /** Glowing eyes (monsters, possessed dolls…). */
   glowingEyes: z.boolean().default(false),
 });

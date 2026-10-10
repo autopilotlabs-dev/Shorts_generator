@@ -1,6 +1,9 @@
-// Stylised 3D cartoon characters built from rounded primitives: big heads, big eyes,
-// soft materials. Fully procedural and frame-deterministic.
+// Animated-film style 3D cartoon characters, sculpted from rounded primitives:
+// big heads with full cheeks, large glossy eyes with lids and highlights, sculpted
+// hair, tapered bodies with hands and shoes, squash & stretch. Fully procedural and
+// frame-deterministic (no randomness, everything is a function of time).
 import { type Actor } from "../../lib/short3d/spec";
+import { Vector2 } from "three";
 import { Toon } from "./materials";
 import { clamp01, easeIn, hashString, lerp, noise, smooth } from "./util";
 
@@ -21,6 +24,9 @@ export interface ActorPose {
   armsUp: number; // 0..1 (scared/raised arms)
   expression: Expression;
   blink: number; // 0 open .. 1 closed
+  eyeYaw: number; // eye darts / looking sideways (radians)
+  eyePitch: number;
+  squash: number; // vertical squash & stretch (+ stretch, - squash)
 }
 
 const FACING_ROT = { camera: 0, left: -Math.PI / 2, right: Math.PI / 2, away: Math.PI } as const;
@@ -45,6 +51,9 @@ export function actorPose(a: Actor, t: number, sceneDuration: number): ActorPose
     armsUp: 0,
     expression: a.expression,
     blink: 0,
+    eyeYaw: noise(t * 0.7, seed + 5) * 0.22,
+    eyePitch: noise(t * 0.5, seed + 6) * 0.08,
+    squash: 0,
   };
   // Blink for ~0.12s every ~3.5s (offset per actor).
   const bt = (t + (seed % 1000) / 300) % 3.5;
@@ -125,6 +134,7 @@ export function actorPose(a: Actor, t: number, sceneDuration: number): ActorPose
       break;
     case "look_around":
       p.headYaw = Math.sin(t * 1.3 + seed) * 0.85;
+      p.eyeYaw = Math.sin(t * 1.3 + seed + 0.4) * 0.35; // eyes lead the head
       break;
     case "sleep":
       p.rotX = -Math.PI / 2;
@@ -141,253 +151,498 @@ export function actorPose(a: Actor, t: number, sceneDuration: number): ActorPose
     default:
       break;
   }
+  // Squash & stretch: bounce while moving, gentle breathing otherwise.
+  p.squash = p.stride > 0 ? Math.sin(p.walk * 2) * 0.035 : Math.sin(t * 2.2 + seed) * 0.012;
+  if (a.expression === "scared" || p.expression === "scared") p.eyeYaw += noise(t * 9, seed + 7) * 0.18;
   if (a.action !== "reveal" && !started && ["walk_in", "run", "walk_left", "walk_right"].includes(a.action)) p.visible = true;
   return p;
 }
 
-// ---------- face ----------
+// ---------- shared look ----------
 
-function Eyes({ y, z, gap, r, expression, blink, skin, glowing, pupilColor = "#1b1320" }: { y: number; z: number; gap: number; r: number; expression: Expression; blink: number; skin: string; glowing?: string; pupilColor?: string }) {
-  const big = { scared: 1.22, surprised: 1.32, creepy_smile: 0.9, smile: 0.95, angry: 0.95, neutral: 1, closed: 1 }[expression];
-  const pupil = { scared: 0.32, surprised: 0.42, creepy_smile: 0.22, smile: 0.5, angry: 0.45, neutral: 0.5, closed: 0.5 }[expression];
-  const lid = expression === "closed" ? 1 : Math.max(blink, expression === "smile" ? 0.35 : expression === "creepy_smile" ? 0.45 : expression === "angry" ? 0.3 : 0);
-  return (
-    <group position={[0, y, z]}>
-      {[-1, 1].map((side) => (
-        <group key={side} position={[side * gap, 0, 0]} scale={[big, big, big]}>
-          <mesh scale={[1, 1.15, 0.75]}>
-            <sphereGeometry args={[r, 24, 24]} />
-            {glowing ? <meshBasicMaterial color={glowing} /> : <Toon color="#fbfbf7" rough={0.15} />}
-          </mesh>
-          {!glowing && (
-            <>
-              <mesh position={[0, -r * 0.05, r * 0.62]} scale={[1, 1.1, 0.5]}>
-                <sphereGeometry args={[r * pupil, 20, 20]} />
-                <Toon color={pupilColor} rough={0.1} />
-              </mesh>
-              <mesh position={[r * 0.2, r * 0.28, r * 0.78]}>
-                <sphereGeometry args={[r * 0.14, 10, 10]} />
-                <meshBasicMaterial color="#ffffff" />
-              </mesh>
-            </>
-          )}
-          {lid > 0.01 && (
-            // Upper eyelid: a skin-coloured cap that slides down over the eye.
-            <mesh position={[0, r * 1.15 * (1 - lid * 1.1), r * 0.05]} scale={[1.08, 1.2 * lid + 0.05, 0.75]}>
-              <sphereGeometry args={[r, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2]} />
-              <Toon color={skin} />
-            </mesh>
-          )}
-        </group>
-      ))}
-    </group>
-  );
+/** Skin gets a faint warm emissive so it reads soft and alive (a cheap stand-in for subsurface scattering). */
+function Skin({ color, opacity = 1 }: { color: string; opacity?: number }) {
+  return <meshStandardMaterial color={color} roughness={0.55} emissive="#ff7a5a" emissiveIntensity={0.06} transparent={opacity < 1} opacity={opacity} />;
 }
 
-function Brows({ y, z, gap, w, expression, color }: { y: number; z: number; gap: number; w: number; expression: Expression; color: string }) {
-  const [lift, angle] = {
-    scared: [0.04, 0.35],
-    surprised: [0.07, 0.1],
-    creepy_smile: [-0.01, -0.3],
-    smile: [0.02, 0.05],
-    angry: [-0.02, -0.45],
-    neutral: [0, 0],
-    closed: [-0.005, 0],
-  }[expression];
-  return (
-    <group position={[0, y + lift, z]}>
-      {[-1, 1].map((side) => (
-        // Capsules are vertical by default; rotate to horizontal, then tilt per expression.
-        <mesh key={side} position={[side * gap, 0, 0]} rotation={[0, 0, Math.PI / 2 + side * angle]}>
-          <capsuleGeometry args={[w * 0.12, w * 0.8, 4, 8]} />
-          <Toon color={color} />
-        </mesh>
-      ))}
-    </group>
-  );
+function Cloth({ color, opacity = 1, rough = 0.78 }: { color: string; opacity?: number; rough?: number }) {
+  return <meshStandardMaterial color={color} roughness={rough} transparent={opacity < 1} opacity={opacity} />;
 }
 
-function Mouth({ y, z, size, expression, t }: { y: number; z: number; size: number; expression: Expression; t: number }) {
-  const dark = "#3a1418";
-  if (expression === "surprised" || expression === "scared") {
-    const open = expression === "surprised" ? 1 : 0.6 + Math.sin(t * 14) * 0.08;
-    return (
-      <mesh position={[0, y, z]} scale={[0.8, open * 1.1, 0.4]}>
-        <sphereGeometry args={[size * 0.5, 16, 16]} />
-        <Toon color={dark} rough={0.3} />
-      </mesh>
-    );
-  }
-  if (expression === "creepy_smile") {
-    return (
-      <group position={[0, y, z]}>
-        <mesh rotation={[0, 0, Math.PI]}>
-          <torusGeometry args={[size * 1.15, size * 0.14, 8, 24, Math.PI]} />
-          <Toon color={dark} />
-        </mesh>
-        <mesh position={[0, -size * 0.75, size * 0.05]} scale={[1, 0.25, 0.3]}>
-          <boxGeometry args={[size * 1.6, size * 0.5, size * 0.3]} />
-          <Toon color="#f4efe0" rough={0.2} />
-        </mesh>
-      </group>
-    );
-  }
-  const frown = expression === "angry";
-  const width = expression === "smile" ? 0.75 : expression === "closed" ? 0.4 : 0.5;
+/** A sphere cap facing +z (used for iris/pupil so they hug the eyeball). */
+function Cap({ r, angle, color, basic, z = 0 }: { r: number; angle: number; color: string; basic?: boolean; z?: number }) {
   return (
-    <mesh position={[0, y + (frown ? -size * 0.3 : 0), z]} rotation={[0, 0, frown ? 0 : Math.PI]}>
-      <torusGeometry args={[size * width, size * 0.1, 8, 20, Math.PI]} />
-      <Toon color={dark} />
+    <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, z]}>
+      <sphereGeometry args={[r, 28, 10, 0, Math.PI * 2, 0, angle]} />
+      {basic ? <meshBasicMaterial color={color} /> : <meshStandardMaterial color={color} roughness={0.15} />}
     </mesh>
   );
 }
 
-// ---------- humanoid ----------
+// ---------- face ----------
 
-interface Build {
-  legLen: number;
-  legR: number;
-  bodyR: number;
-  bodyLen: number;
-  headR: number;
-  armLen: number;
-  armR: number;
-  headStretch?: number;
+interface FaceStyle {
+  skin: string;
+  iris: string;
+  brow: string;
+  glow?: string;
+  blush: boolean;
+  lips?: string;
+  teeth?: boolean;
 }
 
-const KID: Build = { legLen: 0.24, legR: 0.085, bodyR: 0.22, bodyLen: 0.24, headR: 0.37, armLen: 0.28, armR: 0.065 };
-const ADULT: Build = { legLen: 0.48, legR: 0.1, bodyR: 0.26, bodyLen: 0.42, headR: 0.32, armLen: 0.46, armR: 0.075 };
-const MONSTER: Build = { legLen: 0.85, legR: 0.09, bodyR: 0.2, bodyLen: 0.8, headR: 0.24, armLen: 1.0, armR: 0.06, headStretch: 1.35 };
+const LID_OPEN: Record<Expression, number> = {
+  neutral: 0.34, // a little lid over the top of the eye: the classic animated look
+  scared: 0.12,
+  surprised: 0.05,
+  smile: 0.5,
+  creepy_smile: 0.62,
+  angry: 0.58,
+  closed: 1,
+};
+
+function Eye({ r, side, pose, style }: { r: number; side: number; pose: ActorPose; style: FaceStyle }) {
+  const e = pose.expression;
+  const wide = e === "surprised" ? 1.12 : e === "scared" ? 1.06 : 1;
+  const pupil = e === "scared" ? 0.16 : e === "surprised" ? 0.22 : e === "creepy_smile" ? 0.14 : 0.3;
+  const lidAmount = Math.max(LID_OPEN[e], pose.blink);
+  // Upper lid: a skin shell from the top pole; theta grows as the eye closes.
+  const lidTheta = lerp(0.55, Math.PI * 0.92, lidAmount);
+  const angry = e === "angry" ? side * 0.35 : 0;
+  const sad = e === "scared" ? -side * 0.2 : 0;
+  return (
+    <group scale={wide}>
+      {/* eyeball (looks around) */}
+      <group rotation={[pose.eyePitch, pose.eyeYaw, 0]}>
+        <mesh>
+          <sphereGeometry args={[r, 32, 24]} />
+          {style.glow ? <meshBasicMaterial color={style.glow} /> : <meshStandardMaterial color="#fbfaf5" roughness={0.12} />}
+        </mesh>
+        {!style.glow && (
+          <>
+            <Cap r={r * 1.004} angle={0.62} color={style.iris} />
+            <Cap r={r * 1.008} angle={0.62 * pupil * 2} color="#0d0a10" />
+            {/* catch-lights */}
+            <mesh position={[r * 0.3, r * 0.32, r * 0.92]}>
+              <sphereGeometry args={[r * 0.17, 12, 12]} />
+              <meshBasicMaterial color="#ffffff" />
+            </mesh>
+            <mesh position={[-r * 0.22, -r * 0.2, r * 0.97]}>
+              <sphereGeometry args={[r * 0.07, 8, 8]} />
+              <meshBasicMaterial color="#ffffff" />
+            </mesh>
+          </>
+        )}
+      </group>
+      {/* upper lid: tilts for angry/sad brows */}
+      <group rotation={[-0.25, 0, angry + sad]}>
+        <mesh>
+          <sphereGeometry args={[r * 1.07, 28, 14, 0, Math.PI * 2, 0, lidTheta]} />
+          <Skin color={style.skin} />
+        </mesh>
+      </group>
+      {/* lower lid */}
+      <mesh rotation={[Math.PI + 0.15, 0, 0]}>
+        <sphereGeometry args={[r * 1.05, 24, 8, 0, Math.PI * 2, 0, e === "smile" || e === "creepy_smile" ? 0.95 : 0.55]} />
+        <Skin color={style.skin} />
+      </mesh>
+    </group>
+  );
+}
+
+function Brow({ R, side, expression, color }: { R: number; side: number; expression: Expression; color: string }) {
+  const [lift, inner] = {
+    neutral: [0, 0],
+    scared: [0.06, 0.3],
+    surprised: [0.1, 0.05],
+    smile: [0.02, -0.05],
+    creepy_smile: [-0.02, -0.35],
+    angry: [-0.04, -0.5],
+    closed: [-0.01, 0],
+  }[expression];
+  return (
+    <group position={[side * R * 0.36, R * (0.42 + lift), R * 0.86]} rotation={[0.25, side * -0.35, side * inner]}>
+      <mesh rotation={[0, 0, Math.PI / 2]}>
+        <capsuleGeometry args={[R * 0.055, R * 0.26, 6, 10]} />
+        <meshStandardMaterial color={color} roughness={0.8} />
+      </mesh>
+    </group>
+  );
+}
+
+function MouthShape({ R, pose, t, style }: { R: number; pose: ActorPose; t: number; style: FaceStyle }) {
+  const e = pose.expression;
+  const dark = "#4a1620";
+  const y = -R * 0.47;
+  const z = R * 0.9;
+  if (e === "surprised" || e === "scared") {
+    const open = e === "surprised" ? 1 : 0.7 + Math.sin(t * 13) * 0.08;
+    return (
+      <group position={[0, y, z]}>
+        <mesh scale={[0.85, open * 1.2, 0.45]}>
+          <sphereGeometry args={[R * 0.13, 20, 16]} />
+          <meshStandardMaterial color={dark} roughness={0.4} />
+        </mesh>
+        <mesh position={[0, -R * 0.06 * open, R * 0.03]} scale={[0.6, 0.3, 0.3]}>
+          <sphereGeometry args={[R * 0.1, 12, 10]} />
+          <meshStandardMaterial color="#c4505a" roughness={0.5} />
+        </mesh>
+      </group>
+    );
+  }
+  if (e === "creepy_smile") {
+    return (
+      <group position={[0, y + R * 0.04, z - R * 0.02]}>
+        {/* a too-wide grin: dark crescent with a row of small teeth */}
+        <mesh position={[0, -R * 0.05, 0]} scale={[1, 0.42, 0.25]}>
+          <sphereGeometry args={[R * 0.3, 24, 16, 0, Math.PI * 2, Math.PI * 0.5, Math.PI * 0.5]} />
+          <meshStandardMaterial color={dark} roughness={0.6} />
+        </mesh>
+        {Array.from({ length: 7 }, (_, i) => {
+          const x = (i - 3) * R * 0.075;
+          return (
+            <mesh key={i} position={[x, -R * 0.06 - Math.abs(x) * 0.25, R * 0.06]} scale={[0.8, 1, 0.5]}>
+              <coneGeometry args={[R * 0.03, R * 0.07, 4]} />
+              <meshStandardMaterial color="#f5f0e2" roughness={0.3} />
+            </mesh>
+          );
+        })}
+      </group>
+    );
+  }
+  const frown = e === "angry";
+  const width = e === "smile" ? 0.2 : e === "closed" ? 0.09 : 0.12;
+  return (
+    <mesh position={[0, y + (frown ? -R * 0.07 : 0), z]} rotation={[0.15, 0, frown ? 0 : Math.PI]}>
+      <torusGeometry args={[R * width, R * 0.028, 8, 18, Math.PI * 0.9]} />
+      <meshStandardMaterial color={style.lips ?? dark} roughness={0.5} />
+    </mesh>
+  );
+}
+
+/** Head sculpted from overlapping spheres: cranium, full cheeks, soft jaw, ears. */
+function Head({ R, pose, t, style, hair, hairStyle, opacity, stretch = 1, faceless = false }: { R: number; pose: ActorPose; t: number; style: FaceStyle; hair?: string; hairStyle: HairStyle; opacity: number; stretch?: number; faceless?: boolean }) {
+  const eyeR = R * 0.25;
+  return (
+    <group scale={[1, stretch, 1]}>
+      <mesh scale={[1, 1.0, 0.97]} castShadow>
+        <sphereGeometry args={[R, 40, 32]} />
+        <Skin color={style.skin} opacity={opacity} />
+      </mesh>
+      {[-1, 1].map((side) => (
+        <mesh key={`cheek${side}`} position={[side * R * 0.34, -R * 0.28, R * 0.28]}>
+          <sphereGeometry args={[R * 0.46, 28, 20]} />
+          <Skin color={style.skin} opacity={opacity} />
+        </mesh>
+      ))}
+      <mesh position={[0, -R * 0.4, R * 0.2]} scale={[1.0, 0.85, 1]}>
+        <sphereGeometry args={[R * 0.58, 28, 20]} />
+        <Skin color={style.skin} opacity={opacity} />
+      </mesh>
+      {[-1, 1].map((side) => (
+        <mesh key={`ear${side}`} position={[side * R * 0.98, -R * 0.08, -R * 0.02]} scale={[0.45, 1, 0.8]}>
+          <sphereGeometry args={[R * 0.22, 16, 14]} />
+          <Skin color={style.skin} opacity={opacity} />
+        </mesh>
+      ))}
+      {!faceless && (
+        <>
+          {[-1, 1].map((side) => (
+            <group key={`eye${side}`} position={[side * R * 0.37, R * 0.06, R * 0.72]}>
+              <Eye r={eyeR} side={side} pose={pose} style={style} />
+            </group>
+          ))}
+          {[-1, 1].map((side) => (
+            <Brow key={`brow${side}`} R={R} side={side} expression={pose.expression} color={style.brow} />
+          ))}
+          {/* button nose */}
+          <mesh position={[0, -R * 0.2, R * 1.0]} scale={[1.1, 0.9, 1]}>
+            <sphereGeometry args={[R * 0.11, 16, 14]} />
+            <Skin color={style.skin} opacity={opacity} />
+          </mesh>
+          {style.blush &&
+            [-1, 1].map((side) => (
+              <mesh key={`blush${side}`} position={[side * R * 0.5, -R * 0.28, R * 0.76]} rotation={[0, side * 0.55, 0]}>
+                <circleGeometry args={[R * 0.13, 20]} />
+                <meshBasicMaterial color="#ff7b8a" transparent opacity={0.28} depthWrite={false} />
+              </mesh>
+            ))}
+          <MouthShape R={R} pose={pose} t={t} style={style} />
+        </>
+      )}
+      {faceless && style.glow &&
+        [-1, 1].map((side) => (
+          <mesh key={side} position={[side * R * 0.3, R * 0.05, R * 0.88]} scale={[1, 0.7, 0.5]}>
+            <sphereGeometry args={[R * 0.12, 14, 12]} />
+            <meshBasicMaterial color={style.glow} />
+          </mesh>
+        ))}
+      {hair && hairStyle !== "bald" && <Hair R={R} style={hairStyle} color={hair} opacity={opacity} t={t} />}
+    </group>
+  );
+}
+
+// ---------- hair ----------
+
+type HairStyle = NonNullable<Actor["hairStyle"]>;
+
+function Blob({ p, s, r = [0, 0, 0], color, opacity }: { p: [number, number, number]; s: [number, number, number]; r?: [number, number, number]; color: string; opacity: number }) {
+  return (
+    <mesh position={p} scale={s} rotation={r}>
+      <sphereGeometry args={[1, 24, 18]} />
+      <meshStandardMaterial color={color} roughness={0.6} transparent={opacity < 1} opacity={opacity} />
+    </mesh>
+  );
+}
+
+/** Hair sculpted as soft volumes (cap + locks), the way stylised films block hair shapes. */
+function Hair({ R, style, color, opacity, t }: { R: number; style: HairStyle; color: string; opacity: number; t: number }) {
+  const sway = Math.sin(t * 2.2) * 0.04;
+  const cap = (
+    <mesh position={[0, R * 0.05, -R * 0.04]} rotation={[-0.5, 0, 0]} scale={[1.07, 1.05, 1.07]}>
+      <sphereGeometry args={[R, 36, 18, 0, Math.PI * 2, 0, Math.PI * 0.52]} />
+      <meshStandardMaterial color={color} roughness={0.6} transparent={opacity < 1} opacity={opacity} />
+    </mesh>
+  );
+  const c = { color, opacity };
+  switch (style) {
+    case "short":
+      return (
+        <group>
+          {cap}
+          {/* swoopy fringe */}
+          <Blob p={[-R * 0.22, R * 0.66, R * 0.62]} s={[R * 0.42, R * 0.2, R * 0.28]} r={[0.5, 0, 0.35]} {...c} />
+          <Blob p={[R * 0.2, R * 0.72, R * 0.55]} s={[R * 0.36, R * 0.18, R * 0.26]} r={[0.5, 0, -0.25]} {...c} />
+          {[-1, 1].map((sd) => (
+            <Blob key={sd} p={[sd * R * 0.86, R * 0.15, -R * 0.08]} s={[R * 0.2, R * 0.38, R * 0.35]} {...c} />
+          ))}
+        </group>
+      );
+    case "messy":
+      return (
+        <group>
+          {cap}
+          {Array.from({ length: 7 }, (_, i) => {
+            const a = (i / 7) * Math.PI * 1.6 - Math.PI * 0.8;
+            return <Blob key={i} p={[Math.sin(a) * R * 0.55, R * 0.85, Math.cos(a) * R * 0.35]} s={[R * 0.17, R * 0.32, R * 0.17]} r={[Math.cos(a) * 0.5, 0, -Math.sin(a) * 0.6]} {...c} />;
+          })}
+          <Blob p={[0, R * 0.68, R * 0.6]} s={[R * 0.5, R * 0.18, R * 0.25]} r={[0.6, 0, 0]} {...c} />
+        </group>
+      );
+    case "bob":
+    case "long":
+    case "ponytail": {
+      const long = style === "long";
+      return (
+        <group>
+          {cap}
+          {/* bangs */}
+          <Blob p={[0, R * 0.6, R * 0.66]} s={[R * 0.78, R * 0.22, R * 0.3]} r={[0.45, 0, 0]} {...c} />
+          {style !== "ponytail" &&
+            [-1, 1].map((sd) => (
+              <Blob key={sd} p={[sd * R * 0.82, long ? -R * 0.55 : -R * 0.2, -R * 0.12]} s={[R * 0.32, long ? R * 1.05 : R * 0.68, R * 0.55]} r={[0, 0, sd * sway]} {...c} />
+            ))}
+          {style !== "ponytail" && <Blob p={[0, long ? -R * 0.5 : -R * 0.15, -R * 0.55]} s={[R * 0.85, long ? R * 1.05 : R * 0.7, R * 0.5]} {...c} />}
+          {style === "ponytail" && (
+            <group position={[0, R * 0.35, -R * 0.95]} rotation={[0.5 + sway, 0, sway]}>
+              <Blob p={[0, -R * 0.45, 0]} s={[R * 0.28, R * 0.6, R * 0.28]} {...c} />
+              <mesh position={[0, 0, 0.02]}>
+                <torusGeometry args={[R * 0.13, R * 0.04, 8, 16]} />
+                <meshStandardMaterial color="#d9473b" roughness={0.5} />
+              </mesh>
+            </group>
+          )}
+        </group>
+      );
+    }
+    default:
+      return cap;
+  }
+}
+
+// ---------- body ----------
+
+interface Build {
+  R: number; // head radius
+  torso: number; // torso height
+  torsoR: number; // torso radius at the belly
+  leg: number; // leg length
+  arm: number; // arm length
+  limb: number; // limb thickness
+  stretch?: number; // head vertical stretch
+}
+
+const BUILDS: Record<"kid" | "adult" | "monster" | "shadow" | "doll", Build> = {
+  kid: { R: 0.27, torso: 0.42, torsoR: 0.2, leg: 0.34, arm: 0.36, limb: 0.06 },
+  adult: { R: 0.235, torso: 0.6, torsoR: 0.23, leg: 0.74, arm: 0.6, limb: 0.068 },
+  monster: { R: 0.24, torso: 0.9, torsoR: 0.26, leg: 1.0, arm: 1.15, limb: 0.075, stretch: 1.25 },
+  shadow: { R: 0.2, torso: 0.9, torsoR: 0.17, leg: 1.05, arm: 1.05, limb: 0.05, stretch: 1.2 },
+  doll: { R: 0.22, torso: 0.3, torsoR: 0.14, leg: 0.22, arm: 0.24, limb: 0.045 },
+};
+
+/** Pear-shaped torso profile (lathe), wider at the belly, narrow at the shoulders. */
+function torsoPoints(h: number, r: number, dress: boolean) {
+  const pts = dress
+    ? [
+        [0.001, 0],
+        [r * 1.9, 0.02],
+        [r * 1.55, 0.28],
+        [r * 1.0, 0.62],
+        [r * 0.95, 0.85],
+        [r * 0.62, 0.98],
+        [0.001, 1],
+      ]
+    : [
+        [0.001, 0],
+        [r * 1.06, 0.02],
+        [r * 1.06, 0.12],
+        [r * 1.04, 0.25],
+        [r * 1.0, 0.55],
+        [r * 0.92, 0.82],
+        [r * 0.62, 0.98],
+        [0.001, 1],
+      ];
+  return pts.map(([x, y]) => new Vector2(x, y * h));
+}
+
+function Limb({ len, r0, r1, color, skinTip, tipColor, opacity, foot }: { len: number; r0: number; r1: number; color: string; skinTip?: boolean; tipColor: string; opacity: number; foot?: { color: string } }) {
+  return (
+    <group>
+      <mesh position={[0, -len / 2, 0]} castShadow>
+        <cylinderGeometry args={[r0, r1, len, 14]} />
+        <Cloth color={color} opacity={opacity} />
+      </mesh>
+      <mesh position={[0, 0, 0]}>
+        <sphereGeometry args={[r0, 14, 10]} />
+        <Cloth color={color} opacity={opacity} />
+      </mesh>
+      {skinTip && (
+        // mitten hand with a thumb
+        <group position={[0, -len - r1 * 0.6, 0]}>
+          <mesh scale={[0.85, 1.1, 0.65]}>
+            <sphereGeometry args={[r1 * 1.55, 16, 12]} />
+            <Skin color={tipColor} opacity={opacity} />
+          </mesh>
+          <mesh position={[r1 * 0.9, r1 * 0.3, r1 * 0.5]} scale={[0.6, 1, 0.6]}>
+            <sphereGeometry args={[r1 * 0.75, 10, 8]} />
+            <Skin color={tipColor} opacity={opacity} />
+          </mesh>
+        </group>
+      )}
+      {foot && (
+        // chunky sneaker with a pale sole
+        <group position={[0, -len - r1 * 0.2, r1 * 0.9]}>
+          <mesh scale={[1, 0.62, 1.55]}>
+            <sphereGeometry args={[r1 * 1.55, 18, 12]} />
+            <Cloth color={foot.color} opacity={opacity} rough={0.5} />
+          </mesh>
+          <mesh position={[0, -r1 * 0.75, 0]} scale={[1.02, 0.25, 1.58]}>
+            <sphereGeometry args={[r1 * 1.55, 18, 8]} />
+            <Cloth color="#e9e4da" opacity={opacity} rough={0.6} />
+          </mesh>
+        </group>
+      )}
+    </group>
+  );
+}
 
 function Humanoid({
   b,
   pose,
   t,
-  skin,
+  style,
   outfit,
-  hair,
   pants,
-  glowEyes,
+  shoes,
+  hair,
+  hairStyle,
   opacity,
-  hairStyle = "cap",
+  dress = false,
   faceless = false,
-  extra,
+  horns = false,
 }: {
   b: Build;
   pose: ActorPose;
   t: number;
-  skin: string;
+  style: FaceStyle;
   outfit: string;
-  hair?: string;
   pants: string;
-  glowEyes?: string;
+  shoes: string;
+  hair?: string;
+  hairStyle: HairStyle;
   opacity: number;
-  hairStyle?: "cap" | "long" | "none" | "horns";
+  dress?: boolean;
   faceless?: boolean;
-  extra?: React.ReactNode;
+  horns?: boolean;
 }) {
-  const hipY = b.legR + b.legLen + b.legR * 0.5;
-  const bodyY = hipY + b.bodyLen / 2 + b.bodyR * 0.55;
-  const shoulderY = bodyY + b.bodyLen / 2 + b.bodyR * 0.25;
-  const headY = shoulderY + b.headR * (b.headStretch ?? 1) * 0.92;
-  const swing = Math.sin(pose.walk) * 0.55 * pose.stride;
-  const legLen = b.legLen + b.legR;
-  const armLen = b.armLen + b.armR;
-  const shiver = pose.expression === "scared" ? Math.sin(t * 40) * 0.02 : 0;
-  const hs = b.headStretch ?? 1;
+  const swing = Math.sin(pose.walk) * 0.6 * pose.stride;
+  const hipY = b.leg + b.limb * 1.6;
+  const shoulderY = hipY + b.torso * 0.86;
+  const neck = b.R * 0.35;
+  const headY = shoulderY + neck + b.R * (b.stretch ?? 1) * 0.85;
+  const shiver = pose.expression === "scared" ? Math.sin(t * 38) * 0.012 : 0;
+  const stretch = 1 + pose.squash;
   return (
-    <group rotation={[pose.lean, 0, 0]}>
+    <group rotation={[pose.lean, 0, 0]} scale={[1 / Math.sqrt(stretch), stretch, 1 / Math.sqrt(stretch)]}>
       {/* legs */}
-      {[-1, 1].map((side) => (
-        <group key={side} position={[side * b.bodyR * 0.48, hipY, 0]} rotation={[side * swing, 0, 0]}>
-          <mesh position={[0, -legLen / 2, 0]} castShadow>
-            <capsuleGeometry args={[b.legR, b.legLen, 6, 14]} />
-            <Toon color={pants} opacity={opacity} />
-          </mesh>
-          <mesh position={[0, -legLen + 0.01, b.legR * 0.6]} scale={[1, 0.6, 1.5]}>
-            <sphereGeometry args={[b.legR * 1.2, 14, 10]} />
-            <Toon color="#2a2228" opacity={opacity} />
-          </mesh>
-        </group>
-      ))}
-      {/* body */}
-      <mesh position={[0, bodyY, 0]} castShadow>
-        <capsuleGeometry args={[b.bodyR, b.bodyLen, 8, 20]} />
-        <Toon color={outfit} opacity={opacity} sheen={0.8} />
+      {!dress &&
+        [-1, 1].map((side) => (
+          <group key={side} position={[side * b.torsoR * 0.48, hipY, 0]} rotation={[side * swing, 0, 0]}>
+            <Limb len={b.leg} r0={b.limb * 1.25} r1={b.limb * 0.95} color={pants} tipColor={style.skin} opacity={opacity} foot={{ color: shoes }} />
+          </group>
+        ))}
+      {dress &&
+        [-1, 1].map((side) => (
+          <group key={side} position={[side * b.torsoR * 0.45, hipY * 0.95, 0]} rotation={[side * swing * 0.5, 0, 0]}>
+            <Limb len={b.leg} r0={b.limb * 0.9} r1={b.limb * 0.8} color={style.skin} tipColor={style.skin} opacity={opacity} foot={{ color: shoes }} />
+          </group>
+        ))}
+      {/* torso */}
+      <mesh position={[0, hipY - b.limb * 0.6, 0]} castShadow>
+        <latheGeometry args={[torsoPoints(b.torso + b.limb * 0.6, b.torsoR, dress), 28]} />
+        <Cloth color={outfit} opacity={opacity} />
+      </mesh>
+      {!dress && (
+        // waistband / shorts top so shirt and trousers read as separate garments
+        <mesh position={[0, hipY - b.limb * 1.0, 0]}>
+          <cylinderGeometry args={[b.torsoR * 0.98, b.torsoR * 0.92, b.limb * 1.4, 24]} />
+          <Cloth color={pants} opacity={opacity} />
+        </mesh>
+      )}
+      {/* collar */}
+      <mesh position={[0, shoulderY + b.limb * 0.2, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[neck * 0.75, b.limb * 0.45, 8, 20]} />
+        <Cloth color={outfit} opacity={opacity} />
+      </mesh>
+      {/* neck */}
+      <mesh position={[0, shoulderY + neck * 0.5, 0]}>
+        <cylinderGeometry args={[neck * 0.55, neck * 0.65, neck * 1.4, 14]} />
+        <Skin color={style.skin} opacity={opacity} />
       </mesh>
       {/* arms */}
       {[-1, 1].map((side) => (
         <group
           key={side}
-          position={[side * (b.bodyR + b.armR * 0.7), shoulderY - b.armR, 0]}
-          rotation={[-side * swing * 0.9 - pose.armsUp * 1.6, 0, side * (0.12 + pose.armsUp * 0.35)]}
+          position={[side * (b.torsoR * 0.95 + b.limb * 0.6), shoulderY - b.limb * 0.6, 0]}
+          rotation={[-side * swing * 0.85 - pose.armsUp * 1.7, 0, side * (0.14 + pose.armsUp * 0.4)]}
         >
-          <mesh position={[0, -armLen / 2, 0]} castShadow>
-            <capsuleGeometry args={[b.armR, b.armLen, 6, 12]} />
-            <Toon color={outfit} opacity={opacity} sheen={0.8} />
-          </mesh>
-          <mesh position={[0, -armLen - b.armR * 0.4, 0]}>
-            <sphereGeometry args={[b.armR * 1.25, 14, 12]} />
-            <Toon color={skin} opacity={opacity} />
-          </mesh>
+          <Limb len={b.arm * 0.48} r0={b.limb * 1.05} r1={b.limb * 0.9} color={outfit} tipColor={style.skin} opacity={opacity} />
+          <group position={[0, -b.arm * 0.48, 0]} rotation={[-0.25 - pose.armsUp * 0.6, 0, 0]}>
+            <Limb len={b.arm * 0.46} r0={b.limb * 0.82} r1={b.limb * 0.7} color={style.skin} tipColor={style.skin} skinTip opacity={opacity} />
+          </group>
         </group>
       ))}
       {/* head */}
       <group position={[shiver, headY, 0]} rotation={[pose.headTilt * 0.4, pose.headYaw, pose.headTilt]}>
-        <mesh scale={[1, hs, 1]} castShadow>
-          <sphereGeometry args={[b.headR, 40, 32]} />
-          <Toon color={skin} opacity={opacity} rough={0.5} />
-        </mesh>
-        {!faceless && (
-          <>
-            <Eyes
-              y={b.headR * 0.05 * hs}
-              z={b.headR * 0.84}
-              gap={b.headR * 0.36}
-              r={b.headR * 0.27}
-              expression={pose.expression}
-              blink={pose.blink}
-              skin={skin}
-              glowing={glowEyes}
-            />
-            <Brows y={b.headR * 0.4 * hs} z={b.headR * 0.88} gap={b.headR * 0.36} w={b.headR * 0.35} expression={pose.expression} color={hair ?? "#3b2a22"} />
-            <mesh position={[0, -b.headR * 0.12 * hs, b.headR * 0.97]}>
-              <sphereGeometry args={[b.headR * 0.09, 12, 12]} />
-              <Toon color={skin} opacity={opacity} />
-            </mesh>
-            <Mouth y={-b.headR * 0.38 * hs} z={b.headR * 0.9} size={b.headR * 0.22} expression={pose.expression} t={t} />
-          </>
-        )}
-        {faceless && glowEyes && (
-          <Eyes y={b.headR * 0.1 * hs} z={b.headR * 0.85} gap={b.headR * 0.32} r={b.headR * 0.13} expression="neutral" blink={pose.blink} skin={skin} glowing={glowEyes} />
-        )}
-        {hair && hairStyle === "cap" && (
-          <mesh position={[0, b.headR * 0.06, -b.headR * 0.06]} rotation={[-0.75, 0, 0]} scale={[1.07, 1.03, 1.07]}>
-            <sphereGeometry args={[b.headR, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.5]} />
-            <Toon color={hair} opacity={opacity} sheen={0.9} />
-          </mesh>
-        )}
-        {hair && hairStyle === "long" && (
-          <>
-            <mesh position={[0, b.headR * 0.06, -b.headR * 0.06]} rotation={[-0.7, 0, 0]} scale={[1.08, 1.04, 1.08]}>
-              <sphereGeometry args={[b.headR, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.52]} />
-              <Toon color={hair} opacity={opacity} sheen={0.9} />
-            </mesh>
-            <mesh position={[0, -b.headR * 0.45, -b.headR * 0.35]} scale={[1.05, 1.4, 0.6]}>
-              <sphereGeometry args={[b.headR * 0.95, 24, 16]} />
-              <Toon color={hair} opacity={opacity} sheen={0.9} />
-            </mesh>
-          </>
-        )}
-        {hairStyle === "horns" &&
+        <Head R={b.R} pose={pose} t={t} style={style} hair={hair} hairStyle={hairStyle} opacity={opacity} stretch={b.stretch} faceless={faceless} />
+        {horns &&
           [-1, 1].map((side) => (
-            <mesh key={side} position={[side * b.headR * 0.55, b.headR * 0.85 * hs, 0]} rotation={[0, 0, -side * 0.45]}>
-              <coneGeometry args={[b.headR * 0.18, b.headR * 0.8, 12]} />
-              <Toon color="#2b2422" opacity={opacity} />
+            <mesh key={side} position={[side * b.R * 0.55, b.R * 0.95 * (b.stretch ?? 1), 0]} rotation={[0, 0, -side * 0.5]}>
+              <coneGeometry args={[b.R * 0.17, b.R * 0.75, 14]} />
+              <meshStandardMaterial color="#e8dcc0" roughness={0.4} />
             </mesh>
           ))}
       </group>
-      {extra}
     </group>
   );
 }
@@ -478,14 +733,14 @@ function Cat({ pose, t, opacity }: { pose: ActorPose; t: number; opacity: number
 
 // ---------- public component ----------
 
-const DEFAULTS: Record<Actor["character"], { skin: string; outfit: string; hair?: string; pants: string }> = {
-  kid: { skin: "#f2c4a0", outfit: "#e8b04a", hair: "#5a3420", pants: "#36507a" },
-  adult: { skin: "#e6b591", outfit: "#6b7f5a", hair: "#2c2420", pants: "#3a3430" },
-  monster: { skin: "#4a4f5c", outfit: "#2a2d36", pants: "#22252d" },
-  shadow_figure: { skin: "#050507", outfit: "#050507", pants: "#050507" },
-  doll: { skin: "#f6e7dc", outfit: "#b23a48", hair: "#c9a050", pants: "#f6e7dc" },
-  ghost: { skin: "#eef3ff", outfit: "#eef3ff", pants: "#eef3ff" },
-  cat: { skin: "#1d1a22", outfit: "#1d1a22", pants: "#1d1a22" },
+const DEFAULTS: Record<Actor["character"], { skin: string; outfit: string; pants: string; shoes: string; hair?: string; hairStyle: HairStyle; iris: string }> = {
+  kid: { skin: "#f3c6a5", outfit: "#e9a23b", pants: "#3c5a8a", shoes: "#c8423a", hair: "#5a3420", hairStyle: "short", iris: "#6b4a2b" },
+  adult: { skin: "#e8b796", outfit: "#5f7a5a", pants: "#3a3836", shoes: "#2e2622", hair: "#2c2420", hairStyle: "short", iris: "#4a6a8a" },
+  doll: { skin: "#f7e8de", outfit: "#b23a48", pants: "#f7e8de", shoes: "#2a1e22", hair: "#d0a35a", hairStyle: "bob", iris: "#4a7ac0" },
+  monster: { skin: "#5c6a7a", outfit: "#2c3340", pants: "#252a33", shoes: "#1c1f26", hairStyle: "bald", iris: "#ffcc33" },
+  shadow_figure: { skin: "#06060a", outfit: "#06060a", pants: "#06060a", shoes: "#06060a", hairStyle: "bald", iris: "#ffffff" },
+  ghost: { skin: "#eef3ff", outfit: "#eef3ff", pants: "#eef3ff", shoes: "#eef3ff", hairStyle: "bald", iris: "#000000" },
+  cat: { skin: "#1d1a22", outfit: "#1d1a22", pants: "#1d1a22", shoes: "#1d1a22", hairStyle: "bald", iris: "#ffd23f" },
 };
 
 export function Character({ actor, t, sceneDuration }: { actor: Actor; t: number; sceneDuration: number }) {
@@ -494,56 +749,60 @@ export function Character({ actor, t, sceneDuration }: { actor: Actor; t: number
   const d = DEFAULTS[actor.character];
   const skin = actor.skin ?? d.skin;
   const outfit = actor.outfit ?? d.outfit;
+  const pants = actor.pants ?? d.pants;
   const hair = actor.hair ?? d.hair;
+  const hairStyle = actor.hairStyle ?? d.hairStyle;
   const glow = actor.glowingEyes ? (actor.character === "monster" ? "#ff3b2f" : "#ffe14d") : undefined;
-  const common = { pose, t, opacity: pose.opacity };
+  const style: FaceStyle = { skin, iris: actor.eyeColor ?? d.iris, brow: hair ?? "#3b2a22", glow, blush: actor.character === "kid" || actor.character === "doll" };
+  const common = { pose, t, opacity: pose.opacity, outfit, pants, shoes: d.shoes, hair, hairStyle };
 
   let body: React.ReactNode;
   switch (actor.character) {
     case "kid":
-      body = <Humanoid b={KID} skin={skin} outfit={outfit} hair={hair} pants={d.pants} glowEyes={glow} {...common} />;
+      body = <Humanoid b={BUILDS.kid} style={style} {...common} />;
       break;
     case "adult":
-      body = <Humanoid b={ADULT} skin={skin} outfit={outfit} hair={hair} pants={d.pants} glowEyes={glow} {...common} />;
+      body = <Humanoid b={BUILDS.adult} style={style} {...common} />;
       break;
     case "doll":
-      body = <Humanoid b={{ ...KID, headR: 0.4 }} skin={skin} outfit={outfit} hair={hair} hairStyle="long" pants={skin} glowEyes={glow} {...common} pose={{ ...pose, headTilt: pose.headTilt + 0.25 }} />;
+      body = <Humanoid b={BUILDS.doll} style={{ ...style, lips: "#c23a4a" }} dress {...common} pose={{ ...pose, headTilt: pose.headTilt + 0.22 }} />;
       break;
     case "monster":
       body = (
-        <Humanoid b={MONSTER} skin={skin} outfit={outfit} pants={d.pants} hairStyle="horns" glowEyes={glow ?? "#ff3b2f"} {...common} pose={{ ...pose, lean: pose.lean + 0.18 }} />
+        <Humanoid b={BUILDS.monster} style={{ ...style, brow: "#1c2128", glow: glow ?? "#ff3b2f" }} horns {...common} hair={undefined} pose={{ ...pose, lean: pose.lean + 0.2 }} />
       );
       break;
     case "shadow_figure":
-      body = (
-        <Humanoid b={{ ...MONSTER, bodyR: 0.17, headR: 0.22 }} skin={skin} outfit={outfit} pants={d.pants} hairStyle="none" faceless glowEyes={glow ?? "#f2f2ff"} {...common} opacity={0.92 * pose.opacity} />
-      );
+      body = <Humanoid b={BUILDS.shadow} style={{ ...style, glow: glow ?? "#f2f2ff" }} faceless {...common} hair={undefined} opacity={0.94 * pose.opacity} />;
       break;
     case "ghost":
-      body = <Ghost {...common} />;
+      body = <Ghost pose={pose} t={t} opacity={pose.opacity} />;
       break;
     case "cat":
-      body = <Cat {...common} />;
+      body = <Cat pose={pose} t={t} opacity={pose.opacity} />;
       break;
   }
 
   return (
     <group position={pose.pos} rotation={[pose.rotX, pose.rotY, 0]} scale={pose.scale}>
       {body}
-      {/* soft contact shadow: cheaper than real-time shadows and very "animated film" */}
+      {/* soft contact shadow: much cheaper than real-time shadows on a CPU */}
       {pose.rotX === 0 && (
         <mesh position={[0, 0.005 - pose.pos[1], 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <circleGeometry args={[actor.character === "cat" ? 0.3 : 0.45, 32]} />
-          <meshBasicMaterial color="#000000" transparent opacity={0.35 * pose.opacity} depthWrite={false} />
+          <circleGeometry args={[actor.character === "cat" ? 0.3 : actor.character === "doll" ? 0.25 : 0.42, 32]} />
+          <meshBasicMaterial color="#000000" transparent opacity={0.38 * pose.opacity} depthWrite={false} />
         </mesh>
       )}
     </group>
   );
 }
 
+/** Height of each character's eyes, for camera framing. */
+const EYE_HEIGHT: Record<Actor["character"], number> = { kid: 1.12, adult: 1.74, doll: 0.86, monster: 2.95, shadow_figure: 2.85, ghost: 1.2, cat: 0.55 };
+
 /** World-space point a camera should look at for this actor (roughly the face). */
 export function actorFocus(actor: Actor, t: number, sceneDuration: number): [number, number, number] {
   const p = actorPose(actor, t, sceneDuration);
-  const h = { kid: 1.15, adult: 1.6, doll: 1.1, monster: 2.5, shadow_figure: 2.3, ghost: 1.1, cat: 0.5 }[actor.character] * p.scale;
+  const h = EYE_HEIGHT[actor.character] * p.scale;
   return [p.pos[0], p.pos[1] + (p.rotX !== 0 ? 0.7 : h), p.pos[2] + (p.rotX !== 0 ? -0.3 : 0)];
 }

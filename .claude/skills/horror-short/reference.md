@@ -49,7 +49,12 @@ The camera looks from the front (+z) into the scene (-z). Actors stand at `x` -2
 | `x`, `z` | position (see Coordinates) |
 | `start` | seconds into the scene when the action begins (e.g. a `reveal` at 1.5) |
 | `scale` | 0.3-3 (a 1.6 monster towers over a kid) |
-| `outfit`, `hair`, `skin` | `#rrggbb` colours |
+| `outfit` | shirt / dress colour `#rrggbb` |
+| `pants` | trousers colour |
+| `hair` | hair colour |
+| `hairStyle` | `short` `messy` `bob` `ponytail` `long` `bald` (defaults: kid/adult `short`, doll `bob`) |
+| `skin` | skin tone |
+| `eyeColor` | iris colour (e.g. `#6b4a2b` brown, `#3a7a4a` green, `#4a7ac0` blue) |
 | `glowingEyes` | true for monsters, possessed dolls, eyes in the dark |
 
 Action notes: `walk_in` approaches the mark from 5 m back; `walk_away` leaves into the distance (seen from behind); `run` is a panicked sprint toward camera; `creep_closer` slowly advances over the whole scene - great for a figure behind the hero; `reveal` rises/fades in (use `start` to time the scare); `sleep` lies down - put the actor on a `bed` prop at the same x/z; `peek` leans out from the side; `turn_around` starts facing away and turns to camera.
@@ -79,6 +84,10 @@ Sets already contain their basics (bedroom has a window; forest has trees and a 
 
 `move`: `static` `dolly_in` (slow push - default tension) `dolly_out` (reveal surroundings) `pan_left` `pan_right` `orbit_left` `orbit_right` `tilt_up` (from feet up to a monster's face) `crane_down` `handheld` (nervous) `shake` (panic, gets stronger) `push_in_fast` (jump scare).
 `target`: actor id to frame (defaults to the first actor). `intensity`: 0-2.
+
+### Character design tips
+
+Characters have an animated-film look: big heads with full cheeks, large glossy eyes with coloured irises and eyelids, button noses, sculpted hair, mitten hands and chunky sneakers. Expressions drive eyelids, brows, pupils and mouth (`scared` = wide eyes, tiny pupils, trembling mouth; `creepy_smile` = heavy lids and a too-wide grin with teeth). Give each recurring character a distinct silhouette and palette (hair style + outfit colour), and keep them identical across scenes.
 
 ## Directing guide
 

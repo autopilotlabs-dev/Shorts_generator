@@ -14,7 +14,7 @@
       "fog": 0.6,
       "weather": "fireflies",
       "camera": { "shot": "wide", "move": "dolly_in" },
-      "actors": [{ "id": "mia", "character": "kid", "action": "walk_in", "expression": "neutral", "hair": "#7a3b1e", "outfit": "#d9473b" }],
+      "actors": [{ "id": "mia", "character": "kid", "action": "walk_in", "expression": "neutral", "hair": "#7a3b1e", "hairStyle": "ponytail", "outfit": "#d9473b", "eyeColor": "#3a7a4a" }],
       "sfx": ["whisper"]
     },
     {
@@ -26,7 +26,7 @@
       "fog": 0.7,
       "camera": { "shot": "medium", "move": "handheld", "target": "mia" },
       "actors": [
-        { "id": "mia", "character": "kid", "action": "look_around", "expression": "scared", "hair": "#7a3b1e", "outfit": "#d9473b" },
+        { "id": "mia", "character": "kid", "action": "look_around", "expression": "scared", "hair": "#7a3b1e", "hairStyle": "ponytail", "outfit": "#d9473b", "eyeColor": "#3a7a4a" },
         { "id": "thing", "character": "shadow_figure", "x": 1.4, "z": -5, "action": "creep_closer", "glowingEyes": true }
       ],
       "sfx": ["footsteps", "heartbeat"]
@@ -39,7 +39,7 @@
       "keyLight": "moon",
       "fog": 0.8,
       "camera": { "shot": "closeup", "move": "push_in_fast", "target": "mia" },
-      "actors": [{ "id": "mia", "character": "kid", "action": "scared", "expression": "surprised", "hair": "#7a3b1e", "outfit": "#d9473b" }],
+      "actors": [{ "id": "mia", "character": "kid", "action": "scared", "expression": "surprised", "hair": "#7a3b1e", "hairStyle": "ponytail", "outfit": "#d9473b", "eyeColor": "#3a7a4a" }],
       "sfx": ["whisper", "stinger"],
       "effects": ["glitch"]
     },
