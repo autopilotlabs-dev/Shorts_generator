@@ -4,6 +4,74 @@ Turn a written horror story into a narrated, animated **10–60 second vertical 
 
 **Flow:** sign up → write a story → **Generate scenes** → **Generate narration** → optional **AI image** per scene → preview → **Render MP4** → download from your library.
 
+## 3D cartoon horror shorts — free and local, with Claude Code as the director
+
+Make **3D cartoon-style horror shorts** on your own computer. No API keys, no GPU, $0 per video.
+
+- **Claude Code** (signed in with your Claude Pro/Max plan) is the director. It writes the story beats, scenes, characters, camera moves, narration and sound, and checks preview stills.
+- **Kokoro** (open-source text-to-speech) speaks the narration on your CPU.
+- **Remotion + Three.js** render the 3D scenes on your CPU.
+
+You only need Claude Code. Nothing else is billed.
+
+### Set up on Windows (no graphics card needed)
+
+1. Install **Node.js 22 LTS** from https://nodejs.org (tick "Add to PATH").
+2. Install **Git** from https://git-scm.com.
+3. Install **Claude Code** and sign in with your Claude account (see https://code.claude.com/docs).
+4. Open PowerShell and run:
+
+   ```powershell
+   git clone -b claude/horror-story-video-generator-06bfvk https://github.com/autopilotlabs-dev/Shorts_generator.git
+   cd Shorts_generator
+   npm install
+   npx remotion browser ensure
+   ```
+
+   The first video also downloads the Kokoro voice model (about 90 MB) once.
+
+### Make a video
+
+In the project folder, start Claude Code (`claude`) and type:
+
+```
+/horror-short A girl hears her name whispered from the closet every night at 3:13 AM
+```
+
+Claude will:
+1. Write the story and `shorts/<name>/short.json`.
+2. Validate the spec.
+3. Render preview stills and look at them.
+4. Fix framing and lighting problems.
+5. Render `shorts/<name>/out/<name>.mp4`.
+
+You can also run each step yourself:
+
+| Command | What it does |
+|---|---|
+| `npm run short -- new my-story` | Create `shorts/my-story/short.json` from the template |
+| `npm run short -- check my-story` | Validate the spec |
+| `npm run short -- preview my-story` | Voice the narration + render one still per scene into `shorts/my-story/preview/` |
+| `npm run short -- render my-story` | Render the final MP4 |
+| `npm run short -- voices` | List narrator voices |
+
+The scene format (sets, characters, actions, props, camera shots, moods, sound effects) is documented in [`.claude/skills/horror-short/reference.md`](.claude/skills/horror-short/reference.md).
+
+### What to expect
+
+- **Look:** a stylized 3D cartoon. Rounded characters with big expressive eyes, soft lighting, fog, glowing eyes and moody colour grades. Characters are built from code, so it is not animated-studio-film quality.
+- **Speed (CPU only):**
+  - 720p (the default) renders at about 6–7× the video length on a 4-core laptop, so a 30-second short takes about 3–4 minutes.
+  - 1080p (`"quality": 1080`) is about twice as slow.
+- **Claude Pro usage:** directing one short is a handful of messages. Previews are capped at 2–3 rounds per video to save your usage.
+- **Settings:**
+  - `REMOTION_CONCURRENCY` (default 2) sets how many frames render in parallel.
+  - `REMOTION_GL` overrides the WebGL backend (defaults: `angle` on Windows/macOS, `swangle` on Linux).
+
+---
+
+## The web app (2D procedural shorts)
+
 ## Tech stack, and why each piece was chosen
 
 | Layer | Choice | Why | Considered |

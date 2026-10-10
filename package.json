@@ -12,7 +12,8 @@
     "auth:generate": "npx @better-auth/cli generate --config lib/auth.ts --output db/auth-schema.ts",
     "studio": "remotion studio remotion/index.ts",
     "typecheck": "tsc -p .",
-    "test": "node --no-warnings --import tsx --test --test-force-exit tests/*.test.ts"
+    "test": "node --no-warnings --import tsx --test --test-force-exit tests/*.test.ts",
+    "short": "node --no-warnings --import tsx scripts/short.ts"
   },
   "repository": {
     "type": "git",
@@ -29,14 +30,17 @@
     "@anthropic-ai/sdk": "^0.132.1",
     "@aws-sdk/client-s3": "^3.1147.0",
     "@aws-sdk/s3-request-presigner": "^3.1147.0",
+    "@react-three/fiber": "^9.8.1",
     "@remotion/bundler": "4.0.534",
     "@remotion/media": "4.0.534",
     "@remotion/player": "4.0.534",
     "@remotion/renderer": "4.0.534",
+    "@remotion/three": "4.0.534",
     "better-auth": "^1.7.7",
     "bullmq": "^6.3.11",
     "drizzle-orm": "^0.45.4",
     "ioredis": "^6.0.0",
+    "kokoro-js": "^1.2.1",
     "lucide-react": "^1.53.0",
     "next": "^16.4.0",
     "node-web-audio-api": "^2.2.0",
@@ -46,6 +50,7 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "remotion": "4.0.534",
+    "three": "^0.186.1",
     "zod": "^4.6.5"
   },
   "devDependencies": {
@@ -54,6 +59,7 @@
     "@types/node": "^26.6.4",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@types/three": "^0.186.0",
     "drizzle-kit": "^0.31.11",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.15",

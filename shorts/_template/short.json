@@ -1,0 +1,59 @@
+{
+  "title": "Don't Look Back",
+  "voice": "am_onyx",
+  "speed": 0.92,
+  "captionStyle": "bold",
+  "quality": 720,
+  "scenes": [
+    {
+      "id": "s1",
+      "narration": "Grandma always said: if you hear your name in the woods, don't look back.",
+      "set": "forest",
+      "mood": "eerie",
+      "keyLight": "moon",
+      "fog": 0.6,
+      "weather": "fireflies",
+      "camera": { "shot": "wide", "move": "dolly_in" },
+      "actors": [{ "id": "mia", "character": "kid", "action": "walk_in", "expression": "neutral", "hair": "#7a3b1e", "outfit": "#d9473b" }],
+      "sfx": ["whisper"]
+    },
+    {
+      "id": "s2",
+      "narration": "Halfway home, I heard footsteps behind me. Matching mine.",
+      "set": "forest",
+      "mood": "tension",
+      "keyLight": "moon",
+      "fog": 0.7,
+      "camera": { "shot": "medium", "move": "handheld", "target": "mia" },
+      "actors": [
+        { "id": "mia", "character": "kid", "action": "look_around", "expression": "scared", "hair": "#7a3b1e", "outfit": "#d9473b" },
+        { "id": "thing", "character": "shadow_figure", "x": 1.4, "z": -5, "action": "creep_closer", "glowingEyes": true }
+      ],
+      "sfx": ["footsteps", "heartbeat"]
+    },
+    {
+      "id": "s3",
+      "narration": "Then it whispered my name. In my mother's voice.",
+      "set": "forest",
+      "mood": "terror",
+      "keyLight": "moon",
+      "fog": 0.8,
+      "camera": { "shot": "closeup", "move": "push_in_fast", "target": "mia" },
+      "actors": [{ "id": "mia", "character": "kid", "action": "scared", "expression": "surprised", "hair": "#7a3b1e", "outfit": "#d9473b" }],
+      "sfx": ["whisper", "stinger"],
+      "effects": ["glitch"]
+    },
+    {
+      "id": "s4",
+      "narration": "My mother has been gone for six years.",
+      "set": "forest",
+      "mood": "terror",
+      "keyLight": "moon",
+      "fog": 0.9,
+      "camera": { "shot": "low_angle", "move": "dolly_in", "target": "thing", "intensity": 1.4 },
+      "actors": [{ "id": "thing", "character": "monster", "z": -1, "action": "reveal", "glowingEyes": true }],
+      "sfx": ["stinger", "scream"],
+      "effects": ["flicker", "shake"]
+    }
+  ]
+}

@@ -2,7 +2,8 @@
 // @remotion/renderer in the render worker, so preview and export are identical.
 import { Audio } from "@remotion/media";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { AbsoluteFill, continueRender, delayRender, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, continueRender, delayRender, useCurrentFrame, useVideoConfig } from "remotion";
+import { loadFonts } from "./fonts";
 import { Renderer, type CanvasLike, type Platform } from "../lib/engine/renderer";
 import type { ProjectSettings, StoryPlan } from "../lib/engine/types";
 
@@ -17,24 +18,6 @@ export interface HorrorShortProps {
   drawScale?: number;
   // Index signature required by Remotion's inputProps typing.
   [key: string]: unknown;
-}
-
-const FONTS: [family: string, file: string, weight?: string][] = [
-  ["Oswald", "fonts/Oswald-SemiBold.ttf"],
-  ["Special Elite", "fonts/SpecialElite.ttf"],
-  ["Creepster", "fonts/Creepster.ttf"],
-  ["Plus Jakarta Sans", "fonts/PlusJakartaSans-SemiBold.ttf", "600"],
-];
-
-let fontsPromise: Promise<void> | null = null;
-function loadFonts() {
-  fontsPromise ??= Promise.all(
-    FONTS.map(async ([family, file, weight]) => {
-      const face = new FontFace(family, `url(${staticFile(file)})`, { weight: weight ?? "400" });
-      document.fonts.add(await face.load());
-    }),
-  ).then(() => undefined);
-  return fontsPromise;
 }
 
 function loadImage(src: string): Promise<HTMLImageElement> {

@@ -10,3 +10,9 @@ data/
 !.env.example
 .remotion/
 dump.rdb
+
+# 3D shorts: generated files
+shorts/*/.cache/
+shorts/*/.build/
+shorts/*/preview/
+shorts/*/out/
