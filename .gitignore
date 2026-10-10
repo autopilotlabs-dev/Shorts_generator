@@ -9,3 +9,9 @@ data/
 .env*
 !.env.example
 .remotion/
+
+# local video maker
+local/.cache/
+local/projects/*/final.mp4
+local/projects/*/thumbnail.jpg
+local/projects/*/voice/*.tts.wav*

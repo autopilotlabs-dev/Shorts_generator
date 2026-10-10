@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "short": "node --no-warnings --import tsx local/make-video.ts",
     "worker": "node --no-warnings --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx worker/render-worker.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --env-file-if-exists=.env --env-file-if-exists=.env.local node_modules/drizzle-kit/bin.cjs migrate",

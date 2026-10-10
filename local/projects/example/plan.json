@@ -1,0 +1,33 @@
+{
+  "title": "The Dollhouse",
+  "captionStyle": "bold",
+  "showTitle": true,
+  "voice": { "engine": "auto", "rate": -2 },
+  "scenes": [
+    {
+      "text": "Every night, Pip the toy robot checks the dollhouse.",
+      "visual": "house", "mood": "eerie", "effects": ["zoom", "dust"], "sfx": ["musicbox"],
+      "imagePrompt": "A tiny cute toy robot with big glowing round eyes standing in front of an old wooden dollhouse on a child's bedroom floor at night, moonlight through the window"
+    },
+    {
+      "text": "Tonight, one of the little windows is lit.",
+      "visual": "room", "mood": "dread", "effects": ["zoom", "flicker"], "sfx": ["buzz"],
+      "imagePrompt": "Close-up of a miniature dollhouse window glowing warm yellow in a dark bedroom, the toy robot's reflection in the glass"
+    },
+    {
+      "text": "Nobody has opened that house in years.",
+      "visual": "door", "mood": "tension", "effects": ["fog"], "sfx": ["creak"],
+      "imagePrompt": "Tiny dollhouse front door slightly open, dust and cobwebs, a sliver of light inside, toy robot reaching toward it"
+    },
+    {
+      "text": "Inside, every doll is sitting at the table. Facing the door.",
+      "visual": "figure", "mood": "terror", "effects": ["zoom", "shake"], "sfx": ["heartbeat", "stinger"],
+      "imagePrompt": "Inside a miniature dining room, five porcelain dolls sitting around a tiny table, all heads turned toward the viewer, candle light, deeply unsettling"
+    },
+    {
+      "text": "There is one empty chair. It is exactly Pip's size.",
+      "visual": "room", "mood": "terror", "effects": ["flicker", "glitch"], "sfx": ["whisper", "musicbox"],
+      "imagePrompt": "An empty tiny chair at the dolls' table with a small name card that says PIP, the dolls smiling, eerie rim light"
+    }
+  ]
+}
